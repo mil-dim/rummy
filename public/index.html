@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header><div><b>TABLETOP</b><span>LAN</span></div><small id="status">Connecting…</small></header>
+  <main>
+    <section id="welcome" class="panel">
+      <p class="eyebrow">A PRIVATE GAME TABLE</p><h1>Cards, dice,<br><em>good company.</em></h1>
+      <p>Bulgarian Rummy and Backgammon for friends on your LAN or across the internet.</p>
+      <form id="identity"><input id="name" maxlength="24" placeholder="Your name" required><button>Enter the lobby</button></form>
+    </section>
+    <section id="lobby" hidden>
+      <div class="title"><div><p class="eyebrow">GAME LOBBY</p><h2>Choose your table</h2></div><button id="newRoom">New room</button></div>
+      <div id="rooms" class="rooms"></div>
+    </section>
+    <section id="room" hidden>
+      <div class="title"><div><p class="eyebrow" id="roomCode"></p><h2 id="roomName"></h2></div><button id="start">Start game</button></div>
+      <div id="players" class="players"></div><div id="game"></div>
+    </section>
+  </main>
+  <dialog id="create"><form method="dialog"><h2>Open a table</h2>
+    <input id="createName" value="Evening game" maxlength="30">
+    <select id="gameType"><option value="rummy">Bulgarian Rummy</option><option value="backgammon">Backgammon</option></select>
+    <label>Players <input id="maxPlayers" type="number" value="4" min="2" max="6"></label>
+    <menu><button value="cancel" class="ghost">Cancel</button><button id="createGo" value="default">Create</button></menu>
+  </form></dialog>
+  <div id="toast"></div>
+  <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js"></script>
+</body></html>

@@ -49,10 +49,20 @@ function sameOrigin(req) {
   }
 }
 
+function requestIp(req) {
+  const remote = req.socket.remoteAddress || "unknown";
+  const forwarded = req.headers["x-forwarded-for"];
+  const isLoopback = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
+  if (process.env.TRUST_PROXY === "1" && isLoopback && typeof forwarded === "string") {
+    return forwarded.split(",")[0].trim().slice(0, 64);
+  }
+  return remote;
+}
+
 function connectionAllowed(req) {
   if (!sameOrigin(req)) return false;
   const now = Date.now();
-  const ip = req.socket.remoteAddress || "unknown";
+  const ip = requestIp(req);
   let entry = connectionAttempts.get(ip);
   if (!entry || now - entry.startedAt >= CONNECTION_WINDOW_MS) {
     entry = { startedAt: now, count: 0 };

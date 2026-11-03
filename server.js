@@ -1,9 +1,23 @@
 import express from "express";
+import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { Server } from "socket.io";
 import { newRummy, publicRummy, rummyAction } from "./lib/rummy.js";
 import { newBackgammon, backgammonAction } from "./lib/backgammon.js";
+
+const sourceRoot = new URL("./", import.meta.url);
+const buildHash = createHash("sha256");
+for (const path of ["server.js", "package.json", "package-lock.json",
+  ...["lib", "public"].flatMap(dir => readdirSync(new URL(dir + "/", sourceRoot)).sort().map(name => dir + "/" + name))]) {
+  buildHash.update(path).update(readFileSync(new URL(path, sourceRoot)));
+}
+const buildInfo = {
+  environment: String(process.env.APP_ENV || "unspecified").slice(0, 40),
+  version: JSON.parse(readFileSync(new URL("package.json", sourceRoot), "utf8")).version,
+  build: buildHash.digest("hex").slice(0, 12)
+};
 
 const PORT = Number(process.env.PORT) || 8080;
 const MAX_ROOMS = 100;
@@ -94,6 +108,7 @@ app.use((_req, res, next) => {
   next();
 });
 app.use(express.static("public", { dotfiles: "deny", etag: true, maxAge: "1h" }));
+app.get("/version", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(buildInfo); });
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 function reply(ack, payload) {

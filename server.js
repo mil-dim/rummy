@@ -29,7 +29,7 @@ const EVENT_WINDOW_MS = 10_000;
 const MAX_EVENTS_PER_WINDOW = 80;
 const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
-const PROTOCOL_VERSION = 3;
+const PROTOCOL_VERSION = 4;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -189,7 +189,9 @@ function startRummyMatch(room, sprintCount) {
 function recordRummyResult(room) {
   if (room.game?.kind !== "rummy" || !room.game.winner || room.game.resultRecorded) return;
   room.game.resultRecorded = true;
-  room.match.cumulative[room.game.winner] += room.game.scores.awarded;
+  for (const [id, score] of Object.entries(room.game.scores.players)) {
+    room.match.cumulative[id] = (room.match.cumulative[id] || 0) + score.match;
+  }
   room.match.completedGames = room.game.gameNumber;
   room.match.finished = Boolean(room.match.endAfterHand) || room.match.completedGames >= room.match.totalGames;
 }

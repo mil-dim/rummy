@@ -54,7 +54,7 @@ $("#matchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{sp
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>3){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>4){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -184,13 +184,14 @@ function renderGame(){
  game.kind==="rummy"?renderRummy(game):renderBackgammon(game);
 }
 
+const signedPoints=value=>Number(value)>0?`+${Number(value)}`:String(Number(value));
 function resultTable(game){
- const rows=game.players.map(id=>{const score=game.scores.players[id];return `<tr><td>${playerName(id)}${id===game.winner?" 🏆":""}</td><td>${score.cards}</td><td>${score.raw}</td><td>${score.match}</td><td>${score.fullHand?"Full hand":""}</td></tr>`}).join("");
- return `<section class="results"><h2>${playerName(game.winner)} wins!</h2><table><thead><tr><th>Player</th><th>Cards</th><th>Raw</th><th>Match</th><th></th></tr></thead><tbody>${rows}</tbody></table><p>Winner receives <strong>${game.scores.awarded}</strong> match points${game.sprint?" (sprint ×2)":""}.</p></section>`;
+ const rows=game.players.map(id=>{const score=game.scores.players[id];return `<tr><td>${playerName(id)}${id===game.winner?" 🏆":""}</td><td>${score.cards}</td><td>${score.raw}</td><td>${signedPoints(score.match)}</td><td>${score.fullHand?"Full hand":""}</td></tr>`}).join("");
+ return `<section class="results"><h2>${playerName(game.winner)} wins!</h2><table><thead><tr><th>Player</th><th>Cards</th><th>Raw</th><th>Change</th><th></th></tr></thead><tbody>${rows}</tbody></table><p>Winner receives <strong>${game.scores.awarded}</strong> match points${game.sprint?" (sprint ×2)":""}.</p></section>`;
 }
 function standings(){
  if(!room.match)return "";
- const rows=Object.entries(room.match.cumulative).sort((a,b)=>b[1]-a[1]).map(([id,score])=>`<tr><td>${playerName(id)}</td><td>${Number(score)}</td></tr>`).join("");
+ const rows=Object.entries(room.match.cumulative).sort((a,b)=>b[1]-a[1]).map(([id,score])=>`<tr><td>${playerName(id)}</td><td>${signedPoints(score)}</td></tr>`).join("");
  return `<section class="standings"><h3>${room.match.finished?"Final standings":"Cumulative standings"}</h3><table><tbody>${rows}</tbody></table></section>`;
 }
 function stagedHtml(hand){

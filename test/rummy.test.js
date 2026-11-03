@@ -152,3 +152,19 @@ test("undo after stock preserves the draw while reverting later melds",()=>{
   assert.deepEqual(state,afterDraw);
   assert.throws(()=>rummyAction(state,"p1",{type:"undo"}),/Nothing to undo/);
 });
+
+test("high Ace continues longer runs and existing J-Q-K melds",()=>{
+  const run=[card("J","♣"),card("Q","♣"),card("K","♣"),card("A","♣")];
+  const result=validateMeld(run);
+  assert.equal(result.ok,true);
+  assert.equal(result.points,40);
+  assert.deepEqual(result.cards.map(c=>c.rank),["J","Q","K","A"]);
+  assert.equal(validateMeld([card("10","♣"),...run]).ok,true);
+  assert.equal(validateMeld([card("K","♣"),card("A","♣"),card("2","♣")]).ok,false);
+  assert.equal(validateMeld([...run,card("2","♣")]).ok,false);
+  const ace=run[3],state=game([ace,card("4","♥")]);
+  state.opened.p1=true;
+  state.melds=[{id:"run",owner:"p2",type:"run",cards:run.slice(0,3)}];
+  rummyAction(state,"p1",{type:"add",meldId:"run",cardIds:[ace.id]});
+  assert.deepEqual(state.melds[0].cards.map(c=>c.rank),["J","Q","K","A"]);
+});

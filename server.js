@@ -15,6 +15,7 @@ const EVENT_WINDOW_MS = 10_000;
 const MAX_EVENTS_PER_WINDOW = 80;
 const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
+const PROTOCOL_VERSION = 2;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -132,16 +133,38 @@ function emitRoom(room) {
     const state = room.game?.kind === "rummy" ? publicRummy(room.game, player.id) : room.game;
     if (player.socketId) {
       io.to(player.socketId).emit("room", {
+        protocolVersion: PROTOCOL_VERSION,
         id: room.id,
         name: room.name,
         gameType: room.gameType,
         hostId: room.hostId,
         players: room.players.map(playerView),
+        match: room.match,
         game: state
       });
     }
   }
   emitLobby();
+}
+
+function startRummyMatch(room, sprintCount) {
+  const cycles = Math.max(2, Math.min(10, Number(sprintCount) || 2));
+  room.gameNumber = 0;
+  room.match = {
+    sprintCount: cycles,
+    totalGames: cycles * (room.players.length + 1),
+    completedGames: 0,
+    cumulative: Object.fromEntries(room.players.map(player => [player.id, 0])),
+    finished: false
+  };
+}
+
+function recordRummyResult(room) {
+  if (room.game?.kind !== "rummy" || !room.game.winner || room.game.resultRecorded) return;
+  room.game.resultRecorded = true;
+  room.match.cumulative[room.game.winner] += room.game.scores.awarded;
+  room.match.completedGames = room.game.gameNumber;
+  room.match.finished = room.match.completedGames >= room.match.totalGames;
 }
 
 function makeRoomId() {
@@ -245,6 +268,7 @@ io.on("connection", socket => {
         hostId: player.id,
         game: null,
         gameNumber: 0,
+        match: null,
         lastActive: Date.now()
       };
       rooms.set(id, room);
@@ -280,12 +304,21 @@ io.on("connection", socket => {
     }
   });
 
-  socket.on("startGame", (_payload, ack) => {
+  socket.on("startGame", (payload, ack) => {
     try {
+      if (payload !== undefined && (!payload || typeof payload !== "object" || Array.isArray(payload)))
+        throw Error("Invalid start request.");
       const player = socket.data.player;
       const room = findPlayerRoom(player?.id);
       if (!room || room.hostId !== player.id) throw Error("Only the host can start.");
       if (room.players.length < 2) throw Error("At least two players are required.");
+      if (room.game && !room.game.winner) throw Error("The current game is still in progress.");
+
+      if (room.gameType === "rummy") {
+        if (!room.match || room.match.finished) startRummyMatch(room, payload?.sprintCount);
+        if (room.match.finished) throw Error("Start a new match first.");
+        if (room.match.completedGames >= room.match.totalGames) throw Error("This match has finished.");
+      }
       room.gameNumber += 1;
       room.game = room.gameType === "rummy"
         ? newRummy(room.players, room.gameNumber)
@@ -307,6 +340,7 @@ io.on("connection", socket => {
       if (!room) throw Error("Game not found.");
       if (room.game.kind === "rummy") rummyAction(room.game, player.id, action);
       else backgammonAction(room.game, player.id, action);
+      recordRummyResult(room);
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {

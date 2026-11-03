@@ -107,7 +107,17 @@ app.use((_req, res, next) => {
   }
   next();
 });
-app.use(express.static("public", { dotfiles: "deny", etag: true, maxAge: "1h", setHeaders: (res, path) => { if (path.endsWith(".html")) res.setHeader("Cache-Control", "no-store"); } }));
+// Revalidate assets on every load, including unversioned URLs used by older
+// clients. HTML must always be fetched so it can point to the current assets.
+app.use(express.static("public", {
+  dotfiles: "deny",
+  etag: true,
+  maxAge: 0,
+  setHeaders: (res, path) => {
+    res.setHeader("Cache-Control", path.endsWith(".html")
+      ? "no-store" : "private, no-cache, max-age=0, must-revalidate");
+  }
+}));
 app.get("/version", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(buildInfo); });
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { get } from 'node:http';
 import { io } from 'socket.io-client';
 
 // Register before triggering an action: acknowledgements on another socket do
@@ -22,6 +23,28 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   const child = spawn(process.execPath, ['server.js'], {env:{...process.env,PORT:'18089'},stdio:['ignore','pipe','pipe']});
   t.after(() => child.kill());
   await once(child.stdout, 'data');
+  // Old unversioned URLs and new versioned URLs must both revalidate.
+  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.2', '/styles.css?v=1.0.2', '/version']) {
+    const response = await fetch('http://127.0.0.1:18089' + path);
+    assert.equal(response.status, 200);
+    const policy = response.headers.get('cache-control');
+    if (path === '/' || path === '/index.html' || path === '/version') assert.equal(policy, 'no-store');
+    else {
+      assert.equal(policy, 'private, no-cache, max-age=0, must-revalidate');
+      const etag = response.headers.get('etag');
+      assert.ok(etag);
+      // Use raw HTTP: fetch can add request Cache-Control: no-cache, which
+      // deliberately forces Express to return a full 200 instead of a 304.
+      const cached = await new Promise((resolve, reject) => {
+        get('http://127.0.0.1:18089' + path, {headers:{'If-None-Match':etag}}, res => {
+          res.resume(); res.on('end', () => resolve(res));
+        }).on('error', reject);
+      });
+      assert.equal(cached.statusCode, 304);
+      assert.equal(cached.headers['cache-control'], policy);
+    }
+    await response.arrayBuffer();
+  }
   const clients=[];
   t.after(() => clients.forEach(client=>client.disconnect()));
   async function connect(token, name='Player') {

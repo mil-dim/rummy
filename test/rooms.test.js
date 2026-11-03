@@ -4,6 +4,19 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { io } from 'socket.io-client';
 
+// Register before triggering an action: acknowledgements on another socket do
+// not guarantee this socket has received its room/roomLeft notification yet.
+function waitForEvent(socket, event, predicate = () => true) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { socket.off(event, listener); reject(Error('Timed out waiting for ' + event)); }, 3000);
+    function listener(value) {
+      if (!predicate(value)) return;
+      clearTimeout(timer); socket.off(event, listener); resolve(value);
+    }
+    socket.on(event, listener);
+  });
+}
+
 const send = (socket, event, payload = {}) => socket.timeout(3000).emitWithAck(event, payload);
 test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {timeout:20000}, async t => {
   const child = spawn(process.execPath, ['server.js'], {env:{...process.env,PORT:'18089'},stdio:['ignore','pipe','pipe']});
@@ -25,17 +38,21 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   const a=await connect(undefined,'Host'), b=await connect(undefined,'Guest');
   const created=await send(a,'createRoom',{gameType:'rummy'});
   assert.equal((await send(b,'joinRoom',{id:created.id})).ok,true);
+  const transferred = waitForEvent(b, 'room', state => state.hostId === b.identity.player.id);
   assert.equal((await send(a,'leaveRoom')).ok,true);
-  assert.equal(b.room.hostId,b.identity.player.id);
+  const transferredState = await transferred;
+  assert.equal(transferredState.hostId,b.identity.player.id);
+  assert.equal(transferredState.players.length,1);
   assert.equal((await send(a,'joinRoom',{id:created.id})).ok,true);
   assert.equal((await send(b,'startGame',{sprintCount:2})).ok,true);
   const tab=await connect(a.identity.token,'Host');
   assert.equal(tab.identity.resumed,true);
   assert.equal((await send(tab,'createRoom',{})).ok,false);
+  const leftA = waitForEvent(a, 'roomLeft');
+  const leftTab = waitForEvent(tab, 'roomLeft');
+  const rummyWon = waitForEvent(b, 'room', state => state.game?.winner === b.identity.player.id);
   assert.equal((await send(tab,'leaveRoom')).ok,true);
-  // Each socket's notifications precede its following acknowledgement.
-  await send(a,'joinRoom',{id:'INVALID'});
-  await send(b,'joinRoom',{id:created.id});
+  await Promise.all([leftA, leftTab, rummyWon]);
   assert.equal(a.left,true);
   assert.equal(tab.left,true);
   assert.equal(b.room.game.winner,b.identity.player.id);
@@ -48,8 +65,9 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   assert.equal((await send(b,'leaveRoom')).ok,true);
   assert.equal((await send(b,'joinRoom',{id:bgId})).ok,true);
   assert.equal((await send(reconnected,'startGame',{})).ok,true);
+  const bgWon = waitForEvent(reconnected, 'room', state => state.game?.winner === reconnected.identity.player.id);
   assert.equal((await send(b,'leaveRoom')).ok,true);
-  await send(reconnected,'joinRoom',{id:bgId});
+  await bgWon;
   assert.equal(reconnected.room.game.winner,reconnected.identity.player.id);
   assert.equal((await send(reconnected,'leaveRoom')).ok,true);
   assert.equal((await send(b,'joinRoom',{id:bgId})).ok,false);

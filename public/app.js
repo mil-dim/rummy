@@ -1,5 +1,5 @@
 const socket=io(), $=selector=>document.querySelector(selector);
-let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null;
+let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>room?.players.find(candidate=>candidate.id===id);
 const playerName=id=>esc(player(id)?.name||"Player");
@@ -7,7 +7,7 @@ const toast=message=>{const element=$("#toast");element.textContent=String(messa
 
 socket.on("connect",()=>{$("#status").textContent="Connected";const token=localStorage.token;if(token)socket.emit("identify",{token,name:localStorage.name},identified)});
 socket.on("disconnect",()=>$("#status").textContent="Reconnecting…");
-function identified(response){if(!response?.ok){localStorage.removeItem("token");toast(response?.error);return}localStorage.token=response.token;localStorage.name=response.player.name;me=response.player;$("#welcome").hidden=true;$("#lobby").hidden=false}
+function identified(response){if(!response?.ok){localStorage.removeItem("token");toast(response?.error);return}localStorage.token=response.token;localStorage.name=response.player.name;me=response.player;$("#welcome").hidden=true;$("#lobby").hidden=Boolean(response.resumed);if(pendingRoom){const next=pendingRoom;pendingRoom=null;showRoom(next)}else if(!response.resumed){room=null;$("#room").hidden=true}}
 $("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{name:$("#name").value},identified)};
 
 socket.on("lobby",rooms=>{$("#rooms").innerHTML=rooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><button data-join="${esc(item.id)}" ${item.started?"disabled":""}>${item.started?"In progress":"Join table"}</button></article>`).join("")||"<p>No open rooms yet.</p>"});
@@ -30,7 +30,8 @@ $("#start").onclick=()=>{
 };
 $("#matchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{sprintCount:Number($("#sprintCount").value)},response=>{if(response.ok)$("#matchSetup").close();else toast(response.error)})};
 
-socket.on("room",next=>{
+function showRoom(next){
+ if(!me){pendingRoom=next;return}
  if(Number(next.protocolVersion)>2){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  room=next;
@@ -40,7 +41,8 @@ socket.on("room",next=>{
  $("#roomName").textContent=room.name;
  $("#players").innerHTML=room.players.map(item=>`<span>${item.connected?"●":"○"} ${esc(item.name)}</span>`).join("");
  updateStartButton();renderGame();
-});
+}
+socket.on("room",showRoom);
 
 function act(action,onSuccess){
  socket.emit("action",action,response=>{

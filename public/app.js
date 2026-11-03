@@ -232,3 +232,11 @@ document.querySelectorAll("[data-rules-lang]").forEach(button=>button.onclick=()
  const language=button.dataset.rulesLang;
  document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==language);
 });
+
+fetch("/version",{cache:"no-store"}).then(response=>{
+ if(!response.ok)throw Error("Version unavailable");
+ return response.json();
+}).then(info=>{
+ document.querySelector("#buildInfo").textContent=
+   info.environment+" · v"+info.version+" · build "+info.build;
+}).catch(()=>{document.querySelector("#buildInfo").textContent="Build information unavailable"});

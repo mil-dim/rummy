@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { Server } from "socket.io";
-import { newRummy, publicRummy, rummyAction } from "./lib/rummy.js";
+import { newRummy, publicRummy, rummyAction, forfeitRummy } from "./lib/rummy.js";
 import { newBackgammon, backgammonAction } from "./lib/backgammon.js";
 
 const sourceRoot = new URL("./", import.meta.url);
@@ -29,7 +29,7 @@ const EVENT_WINDOW_MS = 10_000;
 const MAX_EVENTS_PER_WINDOW = 80;
 const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
-const PROTOCOL_VERSION = 2;
+const PROTOCOL_VERSION = 3;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -107,7 +107,7 @@ app.use((_req, res, next) => {
   }
   next();
 });
-app.use(express.static("public", { dotfiles: "deny", etag: true, maxAge: "1h" }));
+app.use(express.static("public", { dotfiles: "deny", etag: true, maxAge: "1h", setHeaders: (res, path) => { if (path.endsWith(".html")) res.setHeader("Cache-Control", "no-store"); } }));
 app.get("/version", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(buildInfo); });
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
@@ -154,6 +154,7 @@ function emitRoom(room) {
         gameType: room.gameType,
         hostId: room.hostId,
         players: room.players.map(playerView),
+        formerPlayers: room.formerPlayers || [],
         match: room.match,
         game: state
       });
@@ -163,6 +164,7 @@ function emitRoom(room) {
 }
 
 function startRummyMatch(room, sprintCount) {
+  room.formerPlayers = [];
   const cycles = Math.max(2, Math.min(10, Number(sprintCount) || 2));
   room.gameNumber = 0;
   room.match = {
@@ -179,7 +181,7 @@ function recordRummyResult(room) {
   room.game.resultRecorded = true;
   room.match.cumulative[room.game.winner] += room.game.scores.awarded;
   room.match.completedGames = room.game.gameNumber;
-  room.match.finished = room.match.completedGames >= room.match.totalGames;
+  room.match.finished = Boolean(room.match.endAfterHand) || room.match.completedGames >= room.match.totalGames;
 }
 
 function makeRoomId() {
@@ -228,6 +230,8 @@ io.on("connection", socket => {
       }
       let token = typeof payload.token === "string" ? payload.token.slice(0, 100) : "";
       let player = token ? sessions.get(token) : null;
+      if (socket.data.player && player !== socket.data.player)
+        throw Error("Already identified. Reconnect to change identity.");
 
       if (!player) {
         pruneDisconnectedSessions();
@@ -319,6 +323,44 @@ io.on("connection", socket => {
     }
   });
 
+  socket.on("leaveRoom", (_payload, ack) => {
+    try {
+      const player = socket.data.player;
+      if (!player) throw Error("Choose your name first.");
+      const room = findPlayerRoom(player.id);
+      if (!room) { reply(ack, { ok: true }); return; }
+      if (room.game && !room.game.winner) {
+        if (room.game.kind === "rummy") forfeitRummy(room.game, player.id);
+        else {
+          room.game.winner = room.game.players.find(id => id !== player.id);
+          room.game.forfeited = [player.id];
+        }
+      }
+      if (room.match) {
+        room.match.endAfterHand = true;
+        room.match.finished = true;
+        recordRummyResult(room);
+      }
+      room.formerPlayers = [...(room.formerPlayers || []), { id: player.id, name: player.name }];
+      room.players = room.players.filter(candidate => candidate.id !== player.id);
+      // Leave every tab belonging to this session, not just this socket.
+      for (const client of io.sockets.sockets.values()) {
+        if (client.data.player?.id === player.id) {
+          client.leave(room.id);
+          client.emit("roomLeft", { id: room.id });
+        }
+      }
+      if (!room.players.length) { rooms.delete(room.id); emitLobby(); }
+      else {
+        if (room.hostId === player.id) room.hostId = room.players[0].id;
+        emitRoom(room);
+      }
+      reply(ack, { ok: true });
+    } catch (error) {
+      reply(ack, { ok: false, error: error.message });
+    }
+  });
+
   socket.on("startGame", (payload, ack) => {
     try {
       if (payload !== undefined && (!payload || typeof payload !== "object" || Array.isArray(payload)))
@@ -351,8 +393,8 @@ io.on("connection", socket => {
         throw Error("Invalid action.");
       }
       const player = socket.data.player;
-      const room = [...rooms.values()].find(candidate => candidate.game?.players.includes(player?.id));
-      if (!room) throw Error("Game not found.");
+      const room = findPlayerRoom(player?.id);
+      if (!room?.game) throw Error("Game not found.");
       if (room.game.kind === "rummy") rummyAction(room.game, player.id, action);
       else backgammonAction(room.game, player.id, action);
       recordRummyResult(room);

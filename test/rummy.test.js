@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rummyAction, validateMeld } from "../lib/rummy.js";
+import { rummyAction, validateMeld, newRummy, publicRummy } from "../lib/rummy.js";
 
 let serial=0;
 const card=(rank,suit="♥")=>({id:`c${++serial}`,rank,suit});
@@ -184,4 +184,34 @@ test("sets reject duplicate suits even with two decks or declared jokers",()=>{
   assert.deepEqual(state,before);
   rummyAction(state,"p1",{type:"add",meldId:"set",cardIds:[missing.id]});
   assert.equal(state.melds[0].cards.length,4);
+});
+
+test('forfeit advances the turn, skips departed players and preserves their score', async () => {
+  const { forfeitRummy } = await import('../lib/rummy.js');
+  const g = newRummy([{id:'a'},{id:'b'},{id:'c'}]);
+  forfeitRummy(g, 'a');
+  assert.equal(g.players[g.turn], 'b');
+  assert.throws(() => rummyAction(g, 'a', {type:'undo'}));
+  rummyAction(g, 'b', {type:'draw',from:'stock'});
+  rummyAction(g, 'b', {type:'discard',cardId:g.hands.b[0].id});
+  rummyAction(g, 'c', {type:'draw',from:'stock'});
+  rummyAction(g, 'c', {type:'discard',cardId:g.hands.c[0].id});
+  assert.equal(g.players[g.turn], 'b');
+  forfeitRummy(g, 'c');
+  assert.equal(g.winner, 'b');
+  assert.equal(g.scores.players.a.raw, 100);
+});
+
+test('undo after another player forfeits cannot restore that player', async () => {
+  const { forfeitRummy } = await import('../lib/rummy.js');
+  const g = newRummy([{id:'a'},{id:'b'},{id:'c'}]);
+  const discard = g.discard.at(-1).id;
+  rummyAction(g, 'a', {type:'draw',from:'discard'});
+  forfeitRummy(g, 'b');
+  assert.equal(publicRummy(g, 'a').canUndo, true);
+  rummyAction(g, 'a', {type:'undo'});
+  assert.deepEqual(g.forfeited, ['b']);
+  assert.equal(g.phase, 'draw');
+  assert.equal(g.discard.at(-1).id, discard);
+  assert.equal(g.hands.a.length, 13);
 });

@@ -112,3 +112,30 @@ test("player may open below 44 only when going out immediately",()=>{
   const invalid=game([...lowRun,card("8","♦"),card("9","♦")]);
   assert.throws(()=>rummyAction(invalid,"p1",{type:"meldBatch",melds:[{cardIds:lowRun.map(c=>c.id)}]}),/at least 44/);
 });
+
+test("discard pickup can be undone and replaced by stock draw",()=>{
+  const state=game([card("2","♣"),card("9","♦")]);
+  state.phase="draw";
+  const original=structuredClone(state);
+  rummyAction(state,"p1",{type:"draw",from:"discard"});
+  rummyAction(state,"p1",{type:"undo"});
+  assert.deepEqual(state,original);
+  rummyAction(state,"p1",{type:"draw",from:"stock"});
+  rummyAction(state,"p1",{type:"undo"});
+  assert.throws(()=>rummyAction(state,"p1",{type:"draw",from:"discard"}),/already saw/);
+  rummyAction(state,"p1",{type:"draw",from:"stock"});
+  rummyAction(state,"p1",{type:"discard",cardId:state.hands.p1[0].id});
+  assert.throws(()=>rummyAction(state,"p1",{type:"undo"}),/not your turn/);
+  assert.throws(()=>rummyAction(state,"p2",{type:"undo"}),/Nothing to undo/);
+});
+test("undo restores a meld and opening status without exposing history",()=>{
+  const run=[card("Q","♣"),card("K","♣"),card("A","♣")];
+  const set=[card("7","♥"),card("7","♦"),card("7","♠")];
+  const state=game([...run,...set,card("2","♠")]);
+  const before=structuredClone(state);
+  rummyAction(state,"p1",{type:"meldBatch",melds:[
+    {cardIds:run.map(c=>c.id)},{cardIds:set.map(c=>c.id)}
+  ]});
+  rummyAction(state,"p1",{type:"undo"});
+  assert.deepEqual(state,before);
+});

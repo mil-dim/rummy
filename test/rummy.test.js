@@ -99,6 +99,8 @@ test("unopened opponent is a 100 point full hand",()=>{
   assert.equal(state.winner,"p1");
   assert.equal(state.scores.players.p2.raw,100);
   assert.equal(state.scores.awarded,10);
+  assert.equal(state.scores.players.p1.match,10);
+  assert.equal(state.scores.players.p2.match,-10);
 });
 
 test("player may open below 44 only when going out immediately",()=>{
@@ -228,8 +230,10 @@ test('round each opponent score before applying the sprint multiplier', () => {
       state.opened.p2 = true;
       state.sprint = sprint;
       rummyAction(state, 'p1', {type:'discard', cardId:last.id});
-      assert.equal(state.scores.players.p2.match, expected * (sprint ? 2 : 1));
+      assert.equal(state.scores.players.p2.match, -expected * (sprint ? 2 : 1));
       assert.equal(state.scores.awarded, expected * (sprint ? 2 : 1));
+      assert.equal(state.scores.players.p1.match, state.scores.awarded);
+      assert.equal(Object.values(state.scores.players).reduce((sum, score) => sum + score.match, 0), 0);
     }
   }
 });
@@ -242,7 +246,9 @@ test('round opponents separately and sum their match points for the winner', () 
   state.opened.p2 = state.opened.p3 = true;
   state.sprint = true;
   rummyAction(state, 'p1', {type:'discard',cardId:last.id});
-  assert.equal(state.scores.players.p2.match,6);
-  assert.equal(state.scores.players.p3.match,6);
+  assert.equal(state.scores.players.p2.match,-6);
+  assert.equal(state.scores.players.p3.match,-6);
   assert.equal(state.scores.awarded,12);
+  assert.equal(state.scores.players.p1.match,12);
+  assert.equal(Object.values(state.scores.players).reduce((sum, score) => sum + score.match, 0),0);
 });

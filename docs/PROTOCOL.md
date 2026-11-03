@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **3**
+Protocol version: **4**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -73,3 +73,12 @@ integer (half rounds up), and apply a minimum of 1. Then double that rounded
 score for a sprint. The winner receives the sum of those opponent scores.
 For example: 24 → 2 (sprint 4), 25 → 3 (sprint 6), 27 → 3 (sprint 6).
 An unopened hand remains 100 raw points: 10 normally, 20 during a sprint.
+
+## Zero-sum standings (protocol 4)
+
+Each scores.players[id].match is now a signed change: negative for each loser,
+positive for the winner, whose change equals scores.awarded. Raw points stay
+nonnegative. Each hand and the cumulative standings sum to zero. Cumulative
+standings add every player's signed change once per hand, including forfeited
+players. Highest cumulative score wins after the selected sprint cycles; there
+is no 100-point elimination rule.

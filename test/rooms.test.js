@@ -24,7 +24,7 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   t.after(() => child.kill());
   await once(child.stdout, 'data');
   // Old unversioned URLs and new versioned URLs must both revalidate.
-  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.3', '/styles.css?v=1.0.3', '/version']) {
+  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.4', '/styles.css?v=1.0.4', '/version']) {
     const response = await fetch('http://127.0.0.1:18089' + path);
     assert.equal(response.status, 200);
     const policy = response.headers.get('cache-control');
@@ -80,6 +80,13 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   assert.equal(tab.left,true);
   assert.equal(b.room.game.winner,b.identity.player.id);
   assert.equal(b.room.match.finished,true);
+  assert.equal(b.room.match.cumulative[b.identity.player.id],10);
+  assert.equal(b.room.match.cumulative[a.identity.player.id],-10);
+  assert.equal(Object.values(b.room.match.cumulative).reduce((sum, score) => sum + score,0),0);
+  // Re-emitting the finished room must not count the hand twice.
+  assert.equal((await send(b,'joinRoom',{id:created.id})).ok,true);
+  assert.equal(b.room.match.cumulative[b.identity.player.id],10);
+  assert.equal(b.room.match.cumulative[a.identity.player.id],-10);
   assert.equal((await send(a,'action',{type:'draw',from:'stock'})).ok,false);
   const reconnected=await connect(a.identity.token,'Host');
   assert.equal(reconnected.identity.resumed,false);

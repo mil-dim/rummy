@@ -168,3 +168,20 @@ test("high Ace continues longer runs and existing J-Q-K melds",()=>{
   rummyAction(state,"p1",{type:"add",meldId:"run",cardIds:[ace.id]});
   assert.deepEqual(state.melds[0].cards.map(c=>c.rank),["J","Q","K","A"]);
 });
+
+test("sets reject duplicate suits even with two decks or declared jokers",()=>{
+  const set=[card("5","♠"),card("5","♦"),card("5","♣")];
+  const duplicate=card("5","♣"),missing=card("5","♥");
+  assert.equal(validateMeld([...set,duplicate]).ok,false);
+  assert.equal(validateMeld([...set,missing]).ok,true);
+  const j=card("JOKER","");
+  assert.equal(validateMeld([...set,j],[{cardId:j.id,rank:"5",suit:"♣"}]).ok,false);
+  const state=game([duplicate,missing]);
+  state.opened.p1=true;
+  state.melds=[{id:"set",owner:"p2",type:"set",cards:set}];
+  const before=structuredClone(state);
+  assert.throws(()=>rummyAction(state,"p1",{type:"add",meldId:"set",cardIds:[duplicate.id]}),/distinct suits/);
+  assert.deepEqual(state,before);
+  rummyAction(state,"p1",{type:"add",meldId:"set",cardIds:[missing.id]});
+  assert.equal(state.melds[0].cards.length,4);
+});

@@ -46,3 +46,15 @@ button:disabled{opacity:.42;cursor:not-allowed}
 dialog{border:0;border-radius:18px;background:var(--paper);box-shadow:0 24px 80px #0005;max-width:min(900px,92vw);max-height:90vh}dialog form{display:grid;gap:12px;min-width:320px}.rules-form{overflow:auto;max-height:82vh}.rules-form .title{margin:0}.rules-language{line-height:1.55}.rules-language li{margin:7px 0}menu{display:flex;justify-content:end;gap:8px;padding:0}
 #toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#222;color:white;padding:12px 18px;border-radius:10px;display:none}
 @media(max-width:700px){.panel{background:var(--paper);padding:28px}.panel h1{font-size:50px}form#identity{flex-direction:column}.title h2{font-size:34px}.bg-status{align-items:flex-start;flex-wrap:wrap}.backgammon-wrap{border-width:5px}.backgammon-board{min-height:430px}.bg-row{grid-template-columns:repeat(6,1fr) 28px repeat(6,1fr)}.checker{--size:min(6vw,31px)}.bg-row.top .checker{top:calc(var(--stack)*26px)}.bg-row.bottom .checker{bottom:calc(var(--stack)*26px)}.off-tray{width:42px}.bg-point small{display:none}}
+
+/* Keep inactive panels hidden even when their component uses display:grid. */
+[hidden]{display:none!important}
+.table-melds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.table-melds>.meld{min-width:0;margin:0;padding:12px;gap:8px}
+.table-melds>.meld-wide{grid-column:1/-1}
+.table-melds .meld-cards{width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;padding-bottom:5px}
+.table-melds .playing-card{flex:0 0 64px;width:64px;height:94px}
+@media(max-width:760px){
+  .table-melds{grid-template-columns:minmax(0,1fr)}
+  .table-melds>.meld-wide{grid-column:auto}
+}

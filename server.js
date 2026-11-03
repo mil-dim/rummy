@@ -233,13 +233,13 @@ io.on("connection", socket => {
       socket.data.player = player;
       socket.data.token = token;
 
+      reply(ack, { ok: true, token, player: playerView(player), resumed: Boolean(findPlayerRoom(player.id)) });
       for (const room of rooms.values()) {
         if (room.players.some(candidate => candidate.id === player.id)) {
           socket.join(room.id);
           emitRoom(room);
         }
       }
-      reply(ack, { ok: true, token, player: playerView(player) });
     } catch (error) {
       reply(ack, { ok: false, error: error.message });
     }

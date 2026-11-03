@@ -121,9 +121,7 @@ test("discard pickup can be undone and replaced by stock draw",()=>{
   rummyAction(state,"p1",{type:"undo"});
   assert.deepEqual(state,original);
   rummyAction(state,"p1",{type:"draw",from:"stock"});
-  rummyAction(state,"p1",{type:"undo"});
-  assert.throws(()=>rummyAction(state,"p1",{type:"draw",from:"discard"}),/already saw/);
-  rummyAction(state,"p1",{type:"draw",from:"stock"});
+  assert.throws(()=>rummyAction(state,"p1",{type:"undo"}),/Nothing to undo/);
   rummyAction(state,"p1",{type:"discard",cardId:state.hands.p1[0].id});
   assert.throws(()=>rummyAction(state,"p1",{type:"undo"}),/not your turn/);
   assert.throws(()=>rummyAction(state,"p2",{type:"undo"}),/Nothing to undo/);
@@ -138,4 +136,19 @@ test("undo restores a meld and opening status without exposing history",()=>{
   ]});
   rummyAction(state,"p1",{type:"undo"});
   assert.deepEqual(state,before);
+});
+
+test("undo after stock preserves the draw while reverting later melds",()=>{
+  const run=[card("Q","♣"),card("K","♣"),card("A","♣")];
+  const set=[card("7","♥"),card("7","♦"),card("7","♠")];
+  const state=game([...run,...set,card("2","♠")]);
+  state.phase="draw";
+  rummyAction(state,"p1",{type:"draw",from:"stock"});
+  const afterDraw=structuredClone(state);
+  rummyAction(state,"p1",{type:"meldBatch",melds:[
+    {cardIds:run.map(c=>c.id)},{cardIds:set.map(c=>c.id)}
+  ]});
+  rummyAction(state,"p1",{type:"undo"});
+  assert.deepEqual(state,afterDraw);
+  assert.throws(()=>rummyAction(state,"p1",{type:"undo"}),/Nothing to undo/);
 });

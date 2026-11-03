@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css">
+  <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css?v=1.0.1">
 </head>
 <body>
   <header><div><b>TABLETOP</b><span>LAN</span></div><nav><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
@@ -14,10 +14,12 @@
     </section>
     <section id="lobby" hidden>
       <div class="title"><div><p class="eyebrow">GAME LOBBY</p><h2>Choose your table</h2></div><button id="newRoom">New room</button></div>
+      <div id="resumeArea" class="actions" hidden><button id="resumeGame">Resume game</button><button id="leaveLobby" class="ghost">Leave game</button><span>Your seat is reserved. Leave before joining another table.</span></div>
       <div id="rooms" class="rooms"></div>
     </section>
     <section id="room" hidden>
       <div class="title"><div><p class="eyebrow" id="roomCode"></p><h2 id="roomName"></h2></div><button id="start">Start game</button></div>
+      <div class="actions"><button id="backLobby" class="ghost">Back to lobby</button><button id="leaveGame" class="ghost">Leave game</button></div>
       <div id="players" class="players"></div><div id="game"></div>
     </section>
   </main>
@@ -68,5 +70,5 @@
   </form></dialog>
   <footer id="buildInfo" style="text-align:center;padding:20px;font-size:12px;opacity:.7" aria-label="Deployment information"></footer>
   <div id="toast"></div>
-  <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js"></script>
+  <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js?v=1.0.1"></script>
 </body></html>

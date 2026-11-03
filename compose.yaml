@@ -6,6 +6,7 @@ services:
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:8080"
     environment:
+      APP_ENV: "${APP_ENV:-${COMPOSE_PROJECT_NAME:-unspecified}}"
       NODE_ENV: "${NODE_ENV:-production}"
       PUBLIC_ORIGINS: "${PUBLIC_ORIGINS:-}"
       TRUST_PROXY: "${TRUST_PROXY:-0}"

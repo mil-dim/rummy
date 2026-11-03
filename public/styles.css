@@ -58,3 +58,5 @@ dialog{border:0;border-radius:18px;background:var(--paper);box-shadow:0 24px 80p
   .table-melds{grid-template-columns:minmax(0,1fr)}
   .table-melds>.meld-wide{grid-column:auto}
 }
+
+.joker-options{display:flex;gap:12px;flex-wrap:wrap;padding:18px 0}.playing-card.joker .pip{transform:none;line-height:1.5}.playing-card.joker .pip small{font-size:19px;letter-spacing:0}

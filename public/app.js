@@ -56,7 +56,7 @@ function cardHtml(card,{hand=false}={}){
  const joker=card.rank==="JOKER",red=!joker&&"♥♦".includes(card.suit),label=declared(card);
  return `<button class="playing-card ${red?"red":"black"} ${joker?"joker":""} ${selected.has(card.id)?"selected":""}" ${hand?`data-hand-card="${esc(card.id)}" draggable="true"`:""} aria-label="${joker?`Joker ${esc(label)}`:`${esc(card.rank)} of ${esc(card.suit)}`}">
  <span class="corner top"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span>
- <span class="pip">${joker?(label?`JOKER<br><small>${esc(label)}</small>`:"JOKER"):esc(card.suit)}</span>
+ <span class="pip">${joker?(label?`JOKER<br><small>→ ${esc(label)}</small>`:"JOKER"):esc(card.suit)}</span>
  <span class="corner bottom"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span></button>`;
 }
 
@@ -90,15 +90,63 @@ function parseDeclaration(value){
  const suits={S:"♠",H:"♥",D:"♦",C:"♣","♠":"♠","♥":"♥","♦":"♦","♣":"♣"};
  return {rank:match[1],suit:suits[match[2]]};
 }
-function jokerAssignments(cards){
- const assignments=[];
- for(const card of cards.filter(item=>item.rank==="JOKER"&&!item.represents)){
-   const value=prompt("Which exact card does this joker represent? Examples: 8C, J♠, QH");
-   const parsed=parseDeclaration(value);
-   if(!parsed){toast("Use a rank followed by S, H, D, C or a suit symbol.");return null}
-   assignments.push({cardId:card.id,...parsed});
+const jokerRanks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+const jokerSuits=["♠","♥","♦","♣"];
+function validVirtualMeld(cards){
+ if(cards.every(card=>card.rank===cards[0].rank))return cards.length<=8;
+ if(!cards.every(card=>card.suit===cards[0].suit))return false;
+ return [false,true].some(high=>{
+   const values=cards.map(card=>card.rank==="A"?(high?14:1):jokerRanks.indexOf(card.rank)+1).sort((a,b)=>a-b);
+   return new Set(values).size===values.length&&values.at(-1)-values[0]===values.length-1;
+ });
+}
+function chooseJokerCard(options){
+ if(options.length===1)return Promise.resolve(options[0]);
+ return new Promise(resolve=>{
+   const dialog=document.createElement("dialog");
+   dialog.innerHTML='<h3>Choose the card represented by the joker</h3><div class="joker-options"></div><button class="ghost joker-cancel">Cancel</button>';
+   const finish=value=>{dialog.close();dialog.remove();resolve(value)};
+   for(const option of options){
+     const wrapper=document.createElement("div");
+     wrapper.innerHTML=cardHtml({...option,id:"joker-option"});
+     const button=wrapper.firstElementChild;
+     button.onclick=()=>finish(option);
+     dialog.querySelector(".joker-options").append(button);
+   }
+   dialog.querySelector(".joker-cancel").onclick=()=>finish(null);
+   dialog.addEventListener("cancel",event=>{event.preventDefault();finish(null)});
+   document.body.append(dialog);dialog.showModal();
+ });
+}
+async function jokerAssignments(cards,existing=[]){
+ const combined=[...existing,...cards];
+ const pending=combined.filter(card=>card.rank==="JOKER"&&!card.represents);
+ if(!pending.length)return [];
+ const solutions=[];
+ function search(index,assignments){
+   if(index===pending.length){
+     const virtual=combined.map(card=>card.rank==="JOKER"?(card.represents||assignments.find(a=>a.cardId===card.id)):card);
+     if(validVirtualMeld(virtual))solutions.push(assignments.slice());
+     return;
+   }
+   const normal=combined.filter(card=>card.rank!=="JOKER");
+   for(const rank of jokerRanks)for(const suit of jokerSuits){
+     if(normal.length&&normal.every(card=>card.rank===normal[0].rank)&&rank===normal[0].rank&&normal.some(card=>card.suit===suit))continue;
+     search(index+1,[...assignments,{cardId:pending[index].id,rank,suit}]);
+   }
  }
- return assignments;
+ search(0,[]);
+ let remaining=solutions;
+ const result=[];
+ for(const joker of pending){
+   const options=[...new Map(remaining.map(solution=>{const a=solution.find(a=>a.cardId===joker.id);return [a.rank+a.suit,a]})).values()];
+   if(!options.length){toast("These cards cannot form a valid meld.");return null}
+   const choice=await chooseJokerCard(options);
+   if(!choice)return null;
+   result.push(choice);
+   remaining=remaining.filter(solution=>solution.some(a=>a.cardId===joker.id&&a.rank===choice.rank&&a.suit===choice.suit));
+ }
+ return result;
 }
 
 function renderGame(){
@@ -119,7 +167,7 @@ function standings(){
 function stagedHtml(hand){
  if(!stagedMelds.length)return "";
  const byId=new Map(hand.map(card=>[card.id,card]));
- return `<section class="staging"><h3>Staged melds</h3>${stagedMelds.map((meld,index)=>`<div class="staged-meld">${meld.cardIds.map(id=>cardHtml(byId.get(id))).join("")}<button data-unstage="${index}" class="ghost">Remove</button></div>`).join("")}<button id="layAll">Lay all melds</button></section>`;
+ return `<section class="staging"><h3>Staged melds</h3>${stagedMelds.map((meld,index)=>`<div class="staged-meld">${meld.cardIds.map(id=>cardHtml({...byId.get(id),represents:meld.jokerAssignments?.find(a=>a.cardId===id)})).join("")}<button data-unstage="${index}" class="ghost">Remove</button></div>`).join("")}<button id="layAll">Lay all melds</button></section>`;
 }
 
 function renderRummy(game){
@@ -140,18 +188,18 @@ function renderRummy(game){
  $("#undoTurn")?.addEventListener("click",()=>act({type:"undo"},()=>{stagedMelds=[];selected.clear();renderGame()}));
  $("#stock")?.addEventListener("click",()=>act({type:"draw",from:"stock"}));
  $("#discardDraw")?.addEventListener("click",()=>act({type:"draw",from:"discard"}));
- $("#stage")?.addEventListener("click",()=>{
+ $("#stage")?.addEventListener("click",async()=>{
    const ids=[...selected],used=new Set(stagedMelds.flatMap(item=>item.cardIds));
    if(ids.length<3)return toast("Select at least three cards.");
    if(ids.some(id=>used.has(id)))return toast("A card is already assigned to another staged meld.");
-   const cards=ids.map(id=>hand.find(card=>card.id===id)),assignments=jokerAssignments(cards);
+   const cards=ids.map(id=>hand.find(card=>card.id===id)),assignments=await jokerAssignments(cards);
    if(assignments===null)return;
    stagedMelds.push({cardIds:ids,jokerAssignments:assignments});selected.clear();renderGame();
  });
  document.querySelectorAll("[data-unstage]").forEach(button=>button.onclick=()=>{stagedMelds.splice(Number(button.dataset.unstage),1);renderGame()});
  $("#layAll")?.addEventListener("click",()=>act({type:"meldBatch",melds:stagedMelds},()=>{stagedMelds=[]}));
  $("#discardBtn")?.addEventListener("click",()=>{if(selected.size!==1)return toast("Select one card.");act({type:"discard",cardId:[...selected][0]})});
- document.querySelectorAll("[data-add]").forEach(button=>button.onclick=()=>{
+ document.querySelectorAll("[data-add]").forEach(button=>button.onclick=async()=>{
    const cards=[...selected].map(id=>hand.find(card=>card.id===id)),assignments=jokerAssignments(cards);
    if(!cards.length)return toast("Select cards from your hand.");if(assignments===null)return;
    act({type:"add",meldId:button.dataset.add,cardIds:[...selected],jokerAssignments:assignments});

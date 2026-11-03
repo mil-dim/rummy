@@ -65,3 +65,11 @@ an old game still contains the player's historical ID.
 On touch screens, Arrange cards switches hand taps from selection to reordering:
 tap a source card, then a destination. Done arranging restores normal selection.
 Desktop drag and drop remains available.
+
+## Rummy score rounding
+
+For each opponent, divide raw remaining-card points by 10, round to the nearest
+integer (half rounds up), and apply a minimum of 1. Then double that rounded
+score for a sprint. The winner receives the sum of those opponent scores.
+For example: 24 → 2 (sprint 4), 25 → 3 (sprint 6), 27 → 3 (sprint 6).
+An unopened hand remains 100 raw points: 10 normally, 20 during a sprint.

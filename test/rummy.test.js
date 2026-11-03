@@ -215,3 +215,34 @@ test('undo after another player forfeits cannot restore that player', async () =
   assert.equal(g.discard.at(-1).id, discard);
   assert.equal(g.hands.a.length, 13);
 });
+
+
+test('round each opponent score before applying the sprint multiplier', () => {
+  for (const [ranks, expected] of [
+    [['3'], 1], [['10','10','4'], 2], [['10','10','5'], 3],
+    [['10','10','7'], 3], [['10','10','10','4'], 3], [['10','10','10','5'], 4]
+  ]) {
+    for (const sprint of [false, true]) {
+      const last = card('2');
+      const state = game([last], ranks.map(rank => card(rank)));
+      state.opened.p2 = true;
+      state.sprint = sprint;
+      rummyAction(state, 'p1', {type:'discard', cardId:last.id});
+      assert.equal(state.scores.players.p2.match, expected * (sprint ? 2 : 1));
+      assert.equal(state.scores.awarded, expected * (sprint ? 2 : 1));
+    }
+  }
+});
+
+test('round opponents separately and sum their match points for the winner', () => {
+  const last = card('2');
+  const state = game([last], [card('10'),card('10'),card('7')]);
+  state.players.push('p3');
+  state.hands.p3 = [card('10'),card('10'),card('6')];
+  state.opened.p2 = state.opened.p3 = true;
+  state.sprint = true;
+  rummyAction(state, 'p1', {type:'discard',cardId:last.id});
+  assert.equal(state.scores.players.p2.match,6);
+  assert.equal(state.scores.players.p3.match,6);
+  assert.equal(state.scores.awarded,12);
+});

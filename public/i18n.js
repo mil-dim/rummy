@@ -27,6 +27,9 @@ const bg = {
   'Arrange cards': 'Подреди картите',
   'Done arranging': 'Готово с подреждането',
   'Remove': 'Премахни',
+  'Concede 1 point':'Предай се за 1 точка',
+  'Concede Mars — 2 points':'Предай се с марс — 2 точки',
+  'Accept concession':'Приеми предаването', 'Decline':'Откажи', 'Cancel offer':'Отмени предложението',
   'Roll': 'Хвърли заровете',
   'Roll to start': 'Хвърли за начало'
 };
@@ -63,6 +66,20 @@ export function translateButtons(root, language) {
 // Only application text is translated. Names, card faces and rule articles are
 // explicitly excluded by translateInterface; no game DOM is rebuilt.
 const labels = {
+ 'Win by concession':'Победа след предаване',
+ 'Normal backgammon':'Обикновена табла', 'Gulbara':'Гюлбара', 'Tapa':'Тапа', 'You':'Вие',
+ 'Number of rounds':'Брой кръгове', 'One round: normal backgammon → Gulbara → Tapa.':'Един кръг: обикновена табла → Гюлбара → Тапа.',
+ 'offers to concede':'предлага да се предаде за', 'point(s).':'точки.',
+ 'Offer to concede this game for 1 point?':'Да предложите ли предаване на тази партия за 1 точка?',
+ 'Offer to concede this game for 2 points (Mars)?':'Да предложите ли предаване на тази партия за 2 точки (марс)?',
+ 'Pinned checker':'Затиснат пул',
+ 'Ascending doubles':'Възходящи чифтове', 'Inherited doubles':'Преотстъпени ходове от чифт', 'Original roller':'Хвърлил чифтовете',
+ 'Normal backgammon: hit checkers must re-enter from the center bar first.':'Обикновена табла: ударените пулове трябва първо да влязат от средната преграда.',
+ 'Your starting point is 24; bear off beyond point 1. Choose a die, then a highlighted point.':'Вашата начална позиция е 24; изваждате след позиция 1. Изберете зар, после осветена позиция.',
+ 'Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first three rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.':'Гюлбара: двата цвята се движат в една посока. Един противников пул затваря позицията. След първите ви три хвърляния чифтовете се изиграват възходящо до шест; неизиграните ходове се преотстъпват само веднъж и само ако сте започнали поредицата.',
+ 'Tapa: landing on a lone opposing checker pins it until released. Pinning the last checker on its starting point wins Mars immediately.':'Тапа: самотен противников пул се затиска до освобождаването му. Затискането на последния пул на началната му позиция веднага печели марс.',
+ 'Respond to the concession offer before continuing play.':'Отговорете на предложението за предаване, преди да продължите.',
+
  'match points.':'точки.', 'BACKGAMMON':'ТАБЛА',
  'Connected':'Свързан', 'Connecting…':'Свързване…', 'Reconnecting…':'Повторно свързване…',
  'A PRIVATE GAME TABLE':'ЧАСТНА МАСА ЗА ИГРА', 'Cards, dice,':'Карти, зарове,', 'good company.':'добра компания.',
@@ -113,6 +130,10 @@ export function translateText(text, language) {
  if(translated===undefined){
   translated=translateControl(value,language);
   translated=translated
+   .replace(/^Normal backgammon · /,'Обикновена табла · ')
+   .replace(/^Gulbara · /,'Гюлбара · ')
+   .replace(/^Tapa · /,'Тапа · ')
+   .replace(/Round (\d+) of (\d+)/g,'Кръг $1 от $2')
    .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
    .replace(/^(\d+)\/(\d+) players · (.+)$/, '$1/$2 играчи · $3')
    .replace(/Game (\d+) of (\d+)/g,'Партия $1 от $2')
@@ -138,7 +159,7 @@ const attributeOriginals=new WeakMap();
 export function translateInterface(root,language){
  translateButtons(root,language);
  const doc=root.ownerDocument||root;
- const excluded='.playing-card,.die,.bg-point,.rules-language,[data-rules-lang],[data-no-translate],#roomName,#players,#buildInfo,.roomCard h3,script,style,select#uiLanguage';
+ const excluded='.playing-card,.die,.bg-point,.rules-language,[data-rules-lang],[data-no-translate],#roomName,#buildInfo,.roomCard h3,script,style,select#uiLanguage';
  const walker=doc.createTreeWalker(root,4);
  let node;
  while((node=walker.nextNode())){

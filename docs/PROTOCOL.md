@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **5**
+Protocol version: **6**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -12,7 +12,7 @@ whether a move is legal.
 - `createRoom { name, gameType, maxPlayers }`
 - `joinRoom { id }`
 - `leaveRoom {}`: permanently remove the authenticated player from their seat; no target player ID is accepted.
-- `startGame { sprintCount?, gameCount? }`
+- `startGame { sprintCount?, roundCount? }`
 - `action { ... }`
 
 Every client event uses a Socket.IO acknowledgement shaped as either
@@ -84,9 +84,9 @@ standings add every player's signed change once per hand, including forfeited
 players. Highest cumulative score wins after the selected sprint cycles; there
 is no 100-point elimination rule.
 
-## Backgammon (protocol 5)
+## Backgammon
 
-Choose gameCount (integer 1–100, default 5) when starting a new match. A finished
+Choose roundCount (integer 1–100, default 3) when starting a new match. A finished
 match resets cumulative scores; otherwise startGame advances to the next game.
 In the first game, each player may submit `{ type: "roll" }` once to roll one die.
 Ties reset both opening rolls; openingPrevious preserves the tie for display.
@@ -163,3 +163,38 @@ The preference is stored locally as uiLanguage and survives reload. Changing
 language only updates control text; it does not submit a move, rebuild the game,
 clear selected/staged cards, or change player/room names. The rules dialog starts
 in the selected language. Other status/help text is not fully localized yet.
+
+
+## Three-variant Backgammon (protocol 6)
+
+`startGame { roundCount }` accepts 1..100 rounds; default 3. Each round is
+normal → gulbara → tapa. `match.roundCount` and `totalGames = roundCount * 3`
+are fixed for the match. Each next game uses the previous winner as starter;
+a new match repeats the opening dice contest. `game.variant` selects the rules.
+
+`rollsBySide` counts regular rolls per side, excluding the opening contest and
+inherited dice. Gulbara ascending doubles apply when the roller's count exceeds
+three. `sequence = {roller,face,started,handedOver}` describes four dice at the
+current stage, continuing to six. No giant dice array is sent. A blocked sequence
+transfers its unconsumed dice at most once and only if the roller has moved.
+Blocking again abandons the remainder. The next regular roller is always the
+opponent of the original roller. No bonus rolls are generated. Undo commits at
+handover or final completion; otherwise existing snapshots restore stage state.
+
+Tapa points use `owner/count` for the top color and optional `pinned` for one
+opposing checker underneath. That checker counts toward its owner's 15 but cannot
+move. Removing the last covering checker releases it. Capturing the last checker
+on its starting point sets `tapaWinner` and immediately awards Mars.
+
+Concession actions: `offerResignation {points:1|2}`, `cancelResignation`,
+`acceptResignation`, `declineResignation`. Offers are held privately outside undo
+snapshots and projected as `resignationOffer:{side,points}|null`. Only the other
+player can accept/decline; only the proposer can cancel. Pending offers pause
+moves and rolls. Acceptance finishes one game, sets `scores.resigned`, and awards
+the agreed points; it does not trigger the permanent-leave/end-match policy.
+The UI asks the proposer for a second confirmation before sending an offer.
+
+Board coordinates remain authoritative 0..23. The client maps each player's
+starting point to displayed 24 and home to 1..6, preserving physical IDs in move
+requests. Gulbara red coordinates wrap half a board from white. Player color
+badges do not change with the starter. Spectators use the white perspective.

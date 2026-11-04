@@ -1,3 +1,4 @@
+import { boardView, variantName } from "./backgammon-view.js";
 import { translateInterface, translateText } from "./i18n.js";
 
 const socket=io(), $=selector=>document.querySelector(selector);
@@ -80,12 +81,12 @@ $("#matchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{sp
 
 $("#bgMatchGo").onclick=event=>{
  event.preventDefault();const input=$("#bgGameCount");if(!input.reportValidity())return;
- socket.emit("startGame",{gameCount:Number(input.value)},response=>{if(response.ok)$("#bgMatchSetup").close();else toast(response.error)});
+ socket.emit("startGame",{roundCount:Number(input.value)},response=>{if(response.ok)$("#bgMatchSetup").close();else toast(response.error)});
 };
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>5){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>6){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -94,7 +95,7 @@ function showRoom(next){
  renderLobby();
  $("#roomCode").textContent=`ROOM ${room.id} · ${room.gameType}`;
  $("#roomName").textContent=room.name;
- $("#players").innerHTML=room.players.map(item=>`<span>${item.connected?"●":"○"} ${esc(item.name)}</span>`).join("");
+ $("#players").innerHTML=room.players.map((item,index)=>`<span>${room.gameType==="backgammon"?`<i class="player-checker side-${room.game?room.game.players.indexOf(item.id):index}" aria-hidden="true"></i><span>${(room.game?room.game.players.indexOf(item.id):index)===0?"White":"Red"}</span> `:""}${item.connected?"●":"○"} <span data-no-translate>${esc(item.name)}</span></span>`).join("");
  updateStartButton();renderGame();
 }
 socket.on("room",showRoom);
@@ -282,32 +283,40 @@ function renderRummy(game){
  });
 }
 
-const checkerStack=point=>point.count?`<span class="checker-stack">${Array.from({length:Math.min(Number(point.count),5)},(_,index)=>`<i class="checker side-${Number(point.owner)}" style="--stack:${index}"></i>`).join("")}${point.count>5?`<b class="checker-count">${Number(point.count)}</b>`:""}</span>`:"";
-const bgPoint=(game,index,edge)=>`<button class="bg-point ${edge}" data-point="${index}" aria-label="Point ${index+1}, ${Number(game.points[index].count)} checkers"><span class="triangle"></span><small>${index+1}</small>${checkerStack(game.points[index])}</button>`;
+const checkerStack=point=>point.count?`<span class="checker-stack">${point.pinned!==undefined?`<i class="checker pinned-checker side-${Number(point.pinned)}" style="--stack:0" aria-label="Pinned checker"></i>`:""}${Array.from({length:Math.min(Number(point.count),5)},(_,index)=>`<i class="checker side-${Number(point.owner)}" style="--stack:${index+(point.pinned!==undefined?0.5:0)}"></i>`).join("")}${point.count>5?`<b class="checker-count">${Number(point.count)}</b>`:""}</span>`:"";
+const bgPoint=(game,index,edge,view)=>`<button class="bg-point ${edge}" data-point="${index}" aria-label="Point ${view.label(index)}, ${Number(game.points[index].count)} checkers${game.points[index].pinned!==undefined?", pinned checker":""}"><span class="triangle"></span><small>${view.label(index)}</small>${checkerStack(game.points[index])}</button>`;
 const dieHtml=(die,{index=null,disabled=true,used=false}={})=>`<button class="die face-${Number(die)} ${used?"die-used":""}" ${index===null?"":`data-die="${index}"`} ${disabled?"disabled":""} aria-label="Die ${Number(die)}${used?", used":""}">${Array.from({length:Number(die)},()=>"<i></i>").join("")}</button>`;
 function renderBackgammon(game){
- const turn=game.players[game.turn]===me.id,active=turn&&!game.winner;
- const top=[12,13,14,15,16,17,18,19,20,21,22,23],bottom=[11,10,9,8,7,6,5,4,3,2,1,0];
- const row=(ids,edge)=>`${ids.slice(0,6).map(index=>bgPoint(game,index,edge)).join("")}<div class="bar-space" aria-hidden="true"></div>${ids.slice(6).map(index=>bgPoint(game,index,edge)).join("")}`;
+ const turn=game.players[game.turn]===me.id,active=turn&&!game.winner&&!game.resignationOffer;
+ const mySide=game.players.indexOf(me.id),view=boardView(game.variant,mySide);
+ const {top,bottom}=view;
+ const row=(ids,edge)=>`${ids.slice(0,6).map(index=>bgPoint(game,index,edge,view)).join("")}<div class="bar-space" aria-hidden="true"></div>${ids.slice(6).map(index=>bgPoint(game,index,edge,view)).join("")}`;
  const barSide=side=>`<button class="bar-zone side-${side}" data-bar="${side}" aria-label="${side===0?"White":"Red"} hit checkers: ${Number(game.bar[side])}"><span>${side===0?"White":"Red"}</span><div class="bar-checkers">${Array.from({length:Math.min(game.bar[side],5)},()=>`<i class="checker side-${side}"></i>`).join("")}</div><b>${Number(game.bar[side])}</b></button>`;
  const offSide=side=>`<div class="off-group side-${side}" aria-label="${side===0?"White":"Red"} borne off: ${Number(game.borneOff[side])}"><span>${side===0?"White":"Red"}</span><div class="off-checkers">${Array.from({length:game.borneOff[side]},()=>`<i class="off-checker side-${side}"></i>`).join("")}</div><b>${Number(game.borneOff[side])}</b></div>`;
  const opening=game.phase==="opening";
- const mySide=game.players.indexOf(me.id);
- const progress=room.match?`Game ${game.gameNumber} of ${room.match.totalGames}`:`Game ${game.gameNumber}`;
+ const progress=`${variantName(game.variant)} · Round ${Math.ceil(game.gameNumber/3)} of ${room.match?.roundCount||Math.ceil((room.match?.totalGames||3)/3)} · Game ${game.gameNumber} of ${room.match?.totalGames||3}`;
  const status=game.winner?`${playerName(game.winner)} wins${game.scores?.mars?" — Mars!":"!"}`:opening?"Roll to decide who starts":`${turn?"Your move":playerName(game.players[game.turn])+"'s move"}`;
  const openingHtml=game.openingRolls.some(die=>die!==null)||opening?`<section class="opening-rolls"><p>${opening&&game.openingPrevious?"Opening tie — both players roll again.":opening?"Each player rolls one die. Higher roll starts, then rolls both dice again.":"Opening rolls"}</p>${game.players.map((id,side)=>`<div><span>${playerName(id)}</span>${game.openingRolls[side]!==null?dieHtml(game.openingRolls[side]):"<span>Waiting…</span>"}</div>`).join("")}${opening&&game.openingPrevious?`<small>Previous tie: ${game.openingPrevious.join(" : ")}</small>`:""}</section>`:"";
  const legal=game.legalMoves||[];
  const history=(game.rollHistory||[]).slice().reverse();
  const historyHtml=history.length?`<details class="roll-history"><summary>Roll history — last ${history.length} rolls</summary><ol>${history.map(entry=>`<li>#${Number(entry.id)} · ${playerName(entry.playerId)} · ${entry.kind==="opening"?"Opening":"Turn"} · <strong>${entry.dice.map(Number).join(" : ")}</strong></li>`).join("")}</ol></details>`:"";
- $("#game").innerHTML=`<p>${progress}</p><div class="bg-status"><strong>${status}</strong>
+ const offer=game.resignationOffer;
+ $("#game").innerHTML=`<p class="bg-progress">${progress}</p><div class="bg-colors">${game.players.map((id,side)=>`<span class="color-seat ${side===game.turn?"current-seat":""}"><i class="player-checker side-${side}" aria-hidden="true"></i>${playerName(id)} · <span>${side===0?"White":"Red"}</span>${side===mySide?" · <b>You</b>":""}</span>`).join("")}</div><div class="bg-status"><strong>${status}</strong>
  <div class="dice">${game.dice.map((die,index)=>dieHtml(die,{index,disabled:!active||!legal.some(move=>move.dieIndex===index),used:game.used.includes(index)})).join("")}</div>
  ${!game.winner?`<div class="actions"><button id="bgUndo" ${game.canUndo?"":"disabled"}>Undo last move</button><button id="roll" ${opening?game.openingRolls[mySide]===null?"":"disabled":active&&game.phase==="roll"?"":"disabled"}>${opening?"Roll to start":"Roll"}</button></div>`:""}</div>
  ${game.gameNumber===1&&(opening||(!game.dice.length&&!game.lastTurn))?openingHtml:""}
  ${game.lastTurn?`<section class="last-roll"><p>${playerName(game.lastTurn.playerId)}: ${game.lastTurn.reason==="blocked"?"No legal moves remaining — turn passed":"Turn completed"}</p><div class="dice">${game.lastTurn.dice.map((die,index)=>dieHtml(die,{used:game.lastTurn.used.includes(index)})).join("")}</div></section>`:""}
- ${game.winner?`<section class="results"><h3>${game.scores?.forfeit?"Win by forfeit":game.scores?.mars?"Mars — opponent bore off no checkers":"Win"}</h3><p>${playerName(game.winner)} receives ${Number(game.scores?.awarded||0)} point(s).</p></section>${standings()}`:""}
+ ${game.winner?`<section class="results"><h3>${game.scores?.resigned?"Win by concession":game.scores?.forfeit?"Win by forfeit":game.scores?.mars?"Mars — opponent bore off no checkers":"Win"}</h3><p>${playerName(game.winner)} receives ${Number(game.scores?.awarded||0)} point(s).</p></section>${standings()}`:""}
+ ${!game.winner?`<div class="concession actions">${offer?`<p>${playerName(game.players[offer.side])} <span>offers to concede</span> ${offer.points} <span>point(s).</span></p>${offer.side===mySide?'<button id="cancelResign" class="ghost">Cancel offer</button>':'<button id="acceptResign">Accept concession</button><button id="declineResign" class="ghost">Decline</button>'}`:'<button data-concede="1" class="ghost">Concede 1 point</button><button data-concede="2" class="ghost">Concede Mars — 2 points</button>'}</div>`:""}
+ ${game.sequence&&!game.winner?`<p class="notice sequence-status"><span>${game.sequence.handedOver?"Inherited doubles":"Ascending doubles"}</span>: ${game.sequence.face} → 6 · <span>Original roller</span>: ${playerName(game.players[game.sequence.roller])}</p>`:""}
  ${historyHtml}
- <div class="backgammon-layout"><div class="backgammon-wrap"><div class="backgammon-board"><div class="bg-row top">${row(top,"top")}</div><div class="bg-row bottom">${row(bottom,"bottom")}</div><div class="center-bar" aria-label="Bar — hit checkers">${barSide(0)}${barSide(1)}</div></div></div><aside class="off-tray" aria-label="Borne-off checkers"><strong>Off board</strong>${offSide(0)}${offSide(1)}</aside></div>
- <p class="board-hint">White moves toward point 1; red toward point 24. Choose a die, then a highlighted point. Hit checkers must re-enter from the center bar first. Undo steps back one move at a time until the final dice move. On doubles, the fourth move commits the turn. If blocked early, undo remains available until the opponent rolls.</p>`;
+ <div class="backgammon-layout"><div class="backgammon-wrap"><div class="backgammon-board"><div class="bg-row top">${row(top,"top")}</div><div class="bg-row bottom">${row(bottom,"bottom")}</div><div class="center-bar" aria-label="Bar — hit checkers">${game.variant==="normal"||!game.variant?barSide(1-Math.max(0,mySide))+barSide(Math.max(0,mySide)):""}</div></div></div><aside class="off-tray" aria-label="Borne-off checkers"><strong>Off board</strong>${offSide(1-Math.max(0,mySide))}${offSide(Math.max(0,mySide))}</aside></div>
+ <p class="board-hint">${game.variant==="gulbara"?"Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first three rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.":game.variant==="tapa"?"Tapa: landing on a lone opposing checker pins it until released. Pinning the last checker on its starting point wins Mars immediately.":"Normal backgammon: hit checkers must re-enter from the center bar first."} <span>Your starting point is 24; bear off beyond point 1. Choose a die, then a highlighted point.</span></p>`;
+ document.querySelectorAll('[data-concede]').forEach(button=>button.onclick=()=>{const points=Number(button.dataset.concede);if(confirm(translateText(points===1?"Offer to concede this game for 1 point?":"Offer to concede this game for 2 points (Mars)?",uiLanguage)))act({type:"offerResignation",points})});
+ $("#acceptResign")?.addEventListener("click",()=>act({type:"acceptResignation"}));
+ $("#declineResign")?.addEventListener("click",()=>act({type:"declineResignation"}));
+ $("#cancelResign")?.addEventListener("click",()=>act({type:"cancelResignation"}));
+ if(offer)document.querySelectorAll("#roll,#bgUndo,[data-die]").forEach(button=>button.disabled=true);
  let die=null;
  function chooseDie(index){
    die=index;document.querySelectorAll("[data-die]").forEach(button=>button.classList.toggle("chosen",Number(button.dataset.die)===die));

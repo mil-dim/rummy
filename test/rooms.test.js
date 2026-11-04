@@ -106,8 +106,8 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   const bgId=reconnected.room.id;
   assert.equal((await send(b,'leaveRoom')).ok,true);
   assert.equal((await send(b,'joinRoom',{id:bgId})).ok,true);
-  assert.equal((await send(reconnected,'startGame',{gameCount:0})).ok,false);
-  assert.equal((await send(reconnected,'startGame',{gameCount:3})).ok,true);
+  assert.equal((await send(reconnected,'startGame',{roundCount:0})).ok,false);
+  assert.equal((await send(reconnected,'startGame',{roundCount:1})).ok,true);
   assert.equal(reconnected.room.match.totalGames,3);
   assert.equal(reconnected.room.game.phase,'opening');
   assert.equal((await send(reconnected,'action',{type:'roll'})).ok,true);

@@ -119,14 +119,14 @@ test('voluntary passing, malformed moves and outsiders are rejected without muta
   assert.ok(legalBackgammonMoves(g).length);
 });
 
-test('match scores accumulate normal wins and Mars once, and finish at chosen count',()=>{
+test('match scores accumulate normal wins and Mars once, and finish at chosen round count',()=>{
   const room={players};
   for(const invalid of [0,101,1.5,true,'3',null,Infinity])assert.throws(()=>startBackgammonMatch(room,invalid));
   startBackgammonMatch(room,2);
   let g=position();g.gameNumber=1;put(g,0,0);g.borneOff=[14,1];move(g,0,1);room.game=g;
   recordBackgammonResult(room);recordBackgammonResult(room);
   assert.deepEqual(room.match.cumulative,{p1:1,p2:0});assert.equal(room.match.finished,false);
-  g=position();g.gameNumber=2;g.turn=1;put(g,23,1);g.borneOff=[0,14];move(g,23,1,'p2');room.game=g;
+  g=position();g.gameNumber=6;g.turn=1;put(g,23,1);g.borneOff=[0,14];move(g,23,1,'p2');room.game=g;
   recordBackgammonResult(room);assert.deepEqual(room.match.cumulative,{p1:1,p2:2});assert.equal(room.match.finished,true);
   startBackgammonMatch(room,3);assert.deepEqual(room.match.cumulative,{p1:0,p2:0});assert.equal(room.gameNumber,0);
 });

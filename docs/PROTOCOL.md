@@ -101,10 +101,12 @@ can be played, the higher must be used. Bar checkers re-enter before any other
 checker moves. Side 0 (white) moves toward point 1, side 1 (red) toward point 24.
 
 publicBackgammon returns viewer-specific legalMoves and canUndo. Undo snapshots
-stay in a server-only WeakMap. The first move may be undone until a second move,
-a win, a forfeit, or the opponent's next roll. Moving the same checker twice
-counts as two moves. If only one move was possible, undo can restore that turn
-before the opponent rolls. Rolls themselves cannot be undone.
+stay in a server-only WeakMap as a stack. Undo restores one move at a time,
+including moving the same checker repeatedly. A normal roll allows undo of its
+first move; doubles allow undo of the first three moves, in reverse order. Using
+the final die commits the turn and clears the entire stack. A win, a forfeit, or
+the opponent's next roll also clears it. If blocked before using all dice, the
+stack remains available until the opponent rolls. Rolls themselves cannot be undone.
 
 After a turn, lastTurn contains playerId, dice, used indices, and reason
 (complete or blocked). It stays visible until the next roll. Current dice and

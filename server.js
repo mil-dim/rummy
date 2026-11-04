@@ -7,7 +7,7 @@ import { Server } from "socket.io";
 import { newRummy, publicRummy, rummyAction, forfeitRummy } from "./lib/rummy.js";
 import { newBackgammon, backgammonAction, publicBackgammon, forfeitBackgammon } from "./lib/backgammon.js";
 
-import { startBackgammonMatch, recordBackgammonResult } from "./lib/backgammon-match.js";
+import { startBackgammonMatch, recordBackgammonResult, backgammonVariant } from "./lib/backgammon-match.js";
 
 const sourceRoot = new URL("./", import.meta.url);
 const buildHash = createHash("sha256");
@@ -35,7 +35,7 @@ const EVENT_WINDOW_MS = 10_000;
 const MAX_EVENTS_PER_WINDOW = 80;
 const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
-const PROTOCOL_VERSION = 5;
+const PROTOCOL_VERSION = 6;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -402,7 +402,7 @@ io.on("connection", socket => {
 
       let starter = room.game?.winner || null;
       if (room.gameType === "backgammon" && (!room.match || room.match.finished)) {
-        startBackgammonMatch(room, payload?.gameCount ?? 5);
+        startBackgammonMatch(room, payload?.roundCount ?? 3);
         starter = null;
       }
       if (room.gameType === "rummy") {
@@ -413,7 +413,7 @@ io.on("connection", socket => {
       room.gameNumber += 1;
       room.game = room.gameType === "rummy"
         ? newRummy(room.players, room.gameNumber)
-        : newBackgammon(room.players, { gameNumber: room.gameNumber, starter });
+        : newBackgammon(room.players, { gameNumber: room.gameNumber, starter, variant: backgammonVariant(room.gameNumber) });
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {

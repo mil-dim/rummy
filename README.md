@@ -48,3 +48,16 @@ and every 60 seconds while visible. An update notice offers a reload; active gam
 are not forcibly reloaded. Old pages from before this mechanism may need one final
 reload to load it. This does not deploy changes: update the checkout, deployment
 copy and Docker image separately.
+
+
+## Bulgarian Backgammon rounds
+
+Choose the number of rounds at match setup. Each round plays normal backgammon,
+Gulbara, then Tapa. The previous winner starts the next game, including variant
+changes; a new match uses the opening dice contest. Wins score 1, Mars scores 2.
+The in-app English/Bulgarian rules describe pins and ascending doubles.
+
+Each player sees their own starting point as 24, with checker-color badges.
+Concede 1 point or concede Mars asks for confirmation and then the opponent's
+acceptance. It ends only the current game. Permanent Leave game remains separate
+and ends the match. Protocol 6 requires current browser assets after deployment.

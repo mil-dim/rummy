@@ -117,3 +117,12 @@ header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 .remaining-player h4{margin:0}.remaining-player p{margin:8px 0;font-size:14px}
 .remaining-cards{display:flex;flex-wrap:wrap;gap:5px}
 .remaining-cards .playing-card:disabled{opacity:1;cursor:default;flex-shrink:0}
+
+.player-checker{display:inline-block;flex-shrink:0;width:22px;height:22px;border-radius:50%;border:2px solid #725a42;vertical-align:middle;box-shadow:0 2px 3px #0003}
+.player-checker.side-0{background:radial-gradient(circle at 35% 28%,#fffdf2,#d9cfae)}
+.player-checker.side-1{background:radial-gradient(circle at 35% 28%,#db604c,#9e2f2d)}
+.bg-colors{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0}
+.color-seat{display:flex;align-items:center;gap:6px;padding:8px;border:2px solid transparent;border-radius:10px}
+.current-seat{border-color:var(--green);background:var(--paper)}
+.pinned-checker{outline:3px dashed #252c75;outline-offset:1px}
+.concession{margin:12px 0}.concession p{margin:0}

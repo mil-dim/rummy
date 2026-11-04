@@ -24,7 +24,7 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   t.after(() => child.kill());
   await once(child.stdout, 'data');
   // Old unversioned URLs and new versioned URLs must both revalidate.
-  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.4', '/styles.css?v=1.0.4', '/version']) {
+  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.5', '/styles.css?v=1.0.5', '/version']) {
     const response = await fetch('http://127.0.0.1:18089' + path);
     assert.equal(response.status, 200);
     const policy = response.headers.get('cache-control');
@@ -94,11 +94,20 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   const bgId=reconnected.room.id;
   assert.equal((await send(b,'leaveRoom')).ok,true);
   assert.equal((await send(b,'joinRoom',{id:bgId})).ok,true);
-  assert.equal((await send(reconnected,'startGame',{})).ok,true);
+  assert.equal((await send(reconnected,'startGame',{gameCount:0})).ok,false);
+  assert.equal((await send(reconnected,'startGame',{gameCount:3})).ok,true);
+  assert.equal(reconnected.room.match.totalGames,3);
+  assert.equal(reconnected.room.game.phase,'opening');
+  assert.equal((await send(reconnected,'action',{type:'roll'})).ok,true);
+  assert.ok(reconnected.room.game.openingRolls[0]>=1);
+  assert.equal((await send(b,'action',{type:'roll'})).ok,true);
   const bgWon = waitForEvent(reconnected, 'room', state => state.game?.winner === reconnected.identity.player.id);
   assert.equal((await send(b,'leaveRoom')).ok,true);
   await bgWon;
   assert.equal(reconnected.room.game.winner,reconnected.identity.player.id);
+  assert.equal(reconnected.room.game.scores.awarded,1);
+  assert.equal(reconnected.room.match.cumulative[reconnected.identity.player.id],1);
+  assert.equal(reconnected.room.match.finished,true);
   assert.equal((await send(reconnected,'leaveRoom')).ok,true);
   assert.equal((await send(b,'joinRoom',{id:bgId})).ok,false);
 });

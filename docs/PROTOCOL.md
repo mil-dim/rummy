@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **4**
+Protocol version: **5**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -12,7 +12,7 @@ whether a move is legal.
 - `createRoom { name, gameType, maxPlayers }`
 - `joinRoom { id }`
 - `leaveRoom {}`: permanently remove the authenticated player from their seat; no target player ID is accepted.
-- `startGame { sprintCount? }`
+- `startGame { sprintCount?, gameCount? }`
 - `action { ... }`
 
 Every client event uses a Socket.IO acknowledgement shaped as either
@@ -82,3 +82,39 @@ nonnegative. Each hand and the cumulative standings sum to zero. Cumulative
 standings add every player's signed change once per hand, including forfeited
 players. Highest cumulative score wins after the selected sprint cycles; there
 is no 100-point elimination rule.
+
+## Backgammon (protocol 5)
+
+Choose gameCount (integer 1–100, default 5) when starting a new match. A finished
+match resets cumulative scores; otherwise startGame advances to the next game.
+In the first game, each player may submit `{ type: "roll" }` once to roll one die.
+Ties reset both opening rolls; openingPrevious preserves the tie for display.
+The higher roller then rolls two fresh dice. Subsequent games start with the
+previous winner. The server's phases are opening, roll, play and finished.
+
+Actions are `{ type: "roll" }`, `{ type: "move", from: 0..23 | "bar", dieIndex }`
+and `{ type: "undo" }`. Move coordinates and dieIndex must be integers. Doubles
+expand to four dice. The server searches all continuations and rejects moves
+that fail to use the maximum number of dice; when only one of two different dice
+can be played, the higher must be used. Bar checkers re-enter before any other
+checker moves. Side 0 (white) moves toward point 1, side 1 (red) toward point 24.
+
+publicBackgammon returns viewer-specific legalMoves and canUndo. Undo snapshots
+stay in a server-only WeakMap. The first move may be undone until a second move,
+a win, a forfeit, or the opponent's next roll. Moving the same checker twice
+counts as two moves. If only one move was possible, undo can restore that turn
+before the opponent rolls. Rolls themselves cannot be undone.
+
+After a turn, lastTurn contains playerId, dice, used indices, and reason
+(complete or blocked). It stays visible until the next roll. Current dice and
+used indices are separate, allowing the next player to roll without losing the
+previous roll's evidence prematurely.
+
+A normal win earns 1; Mars earns 2 if the opponent has borne off no checkers.
+No additional triple-point category is applied. A permanent departure earns the
+opponent 1 forfeit point and ends the match. scores contains winner, awarded,
+mars and forfeit. The server records each result once in match.cumulative.
+Backgammon totals accumulate positively; Rummy zero-sum scoring is unchanged.
+
+The center bar displays each side's hit checkers exactly once. Borne-off checkers
+appear in a separate off-board tray. The browser does not decide legal moves.

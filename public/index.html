@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css?v=1.0.4">
+  <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css?v=1.0.5">
 </head>
 <body>
   <header><div><b>TABLETOP</b><span>LAN</span></div><nav><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
@@ -36,6 +36,11 @@
     <p class="muted">With N players, every N+1 game is a double-points sprint.</p>
     <menu><button value="cancel" class="ghost">Cancel</button><button id="matchGo" value="default">Start match</button></menu>
   </form></dialog>
+  <dialog id="bgMatchSetup"><form method="dialog"><h2>Backgammon match</h2>
+    <label>Number of games <input id="bgGameCount" type="number" value="5" min="1" max="100" required></label>
+    <p>Win: 1 point. Mars (opponent has borne off none): 2 points.</p>
+    <menu><button value="cancel" class="ghost">Cancel</button><button id="bgMatchGo">Start match</button></menu>
+  </form></dialog>
   <dialog id="rules"><form method="dialog" class="rules-form">
     <div class="title"><h2>Rules / Правила</h2><button value="cancel" class="ghost">Close</button></div>
     <div class="actions"><button type="button" data-rules-lang="en">English</button><button type="button" data-rules-lang="bg">Български</button></div>
@@ -51,7 +56,7 @@
         <li>Only an opened player may add to table melds. When stock ends, turn the discard pile over without shuffling; the earliest discard is drawn first.</li>
         <li>Winner receives opponents' remaining points divided by 10, rounded to the nearest whole point (5 rounds up; minimum 1). An unopened opponent counts 100 raw points. Sprint games double the rounded match points. Each loser loses those points and the winner gains their sum; standings always total zero.</li>
       </ul>
-      <h3>Backgammon</h3><p>Move whenever a legal move exists, enter from the bar first, obey blocked points and bearing-off rules, and bear off all 15 checkers to win. Voluntary passing is not allowed.</p>
+      <h3>Backgammon</h3><p>Choose the number of games before the match. In the first game each player rolls one die; ties are rerolled. The higher roller starts and rolls both dice again. Later games start with the previous winner. Use both dice whenever possible, or the higher die if only one can be used. Doubles give four moves; play as many as legally possible. Hit checkers wait on the center bar and must re-enter first. Borne-off checkers go outside the board. Undo the first move before the second move, or before the opponent rolls if the turn ended after one move. Blocked rolls stay visible until the next roll. A win earns 1 point, or 2 for Mars when the opponent has borne off none; forfeits earn 1. Points accumulate across the chosen games.</p>
     </article>
     <article class="rules-language" data-language="bg" hidden>
       <h3>Български Реми</h3>
@@ -65,10 +70,10 @@
         <li>Само свалил играч може да долепя. При свършване на тестето купчината се обръща без разбъркване; първа се тегли най-рано изхвърлената карта.</li>
         <li>Победителят получава точките в ръцете на противниците, разделени на 10 и закръглени до най-близкото цяло число (5 се закръгля нагоре; минимум 1). Несвалил играч е 100 сурови точки. Спринтът удвоява резултата след закръглянето. Всеки загубил губи тези точки, а победителят получава сбора им; общият сбор в класирането винаги е нула.</li>
       </ul>
-      <h3>Табла</h3><p>Задължително се играе, когато има възможен ход; първо се влиза от бара, спазват се затворените позиции и правилата за вадене. Печели първият извадил всичките 15 пула.</p>
+      <h3>Табла</h3><p>Преди мача се избира броят партии. В първата партия всеки хвърля по един зар; при равенство се хвърля отново. По-високият започва и хвърля двата зара наново. Следващите партии започва предишният победител. Задължително се използват двата зара, ако е възможно; ако може само един, играе се по-големият. Чифтът дава четири хода и се играят максимално възможните. Ударените пулове чакат на средната преграда и влизат първи. Извадените пулове са извън дъската. Първият ход може да се върне преди втория ход, или преди противникът да хвърли, ако ходът е приключил след едно местене. При липса на ход заровете остават видими до следващото хвърляне. Победа носи 1 точка, марс — 2, ако противникът няма извадени пулове; служебна победа — 1. Точките се натрупват за избрания брой партии.</p>
     </article>
   </form></dialog>
   <footer id="buildInfo" style="text-align:center;padding:20px;font-size:12px;opacity:.7" aria-label="Deployment information"></footer>
   <div id="toast"></div>
-  <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js?v=1.0.4"></script>
+  <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js?v=1.0.5"></script>
 </body></html>

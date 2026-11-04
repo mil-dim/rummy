@@ -60,3 +60,45 @@ dialog{border:0;border-radius:18px;background:var(--paper);box-shadow:0 24px 80p
 }
 
 .joker-options{display:flex;gap:12px;flex-wrap:wrap;padding:18px 0}.playing-card.joker .pip{transform:none;line-height:1.5}.playing-card.joker .pip small{font-size:19px;letter-spacing:0}
+
+/* One full-height central bar; the off tray is outside the wooden board. */
+.backgammon-layout{display:grid;grid-template-columns:minmax(0,1fr) 76px;gap:12px;max-width:1130px;margin:auto;align-items:stretch}
+.backgammon-layout .backgammon-wrap{width:100%;min-width:0;margin:0}
+.backgammon-board{--bar-width:46px;min-width:0}
+.bg-row{grid-template-columns:repeat(6,minmax(0,1fr)) var(--bar-width) repeat(6,minmax(0,1fr))}
+.center-bar{position:absolute;z-index:5;top:0;bottom:0;left:50%;transform:translateX(-50%);width:var(--bar-width);display:grid;grid-template-rows:1fr 1fr;background:linear-gradient(90deg,#51331f,#8a5a35 50%,#51331f);border-inline:2px solid #342113}
+.bar-zone{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;border:0;border-radius:0;padding:10px 2px;background:transparent;color:#fff4d9;overflow:hidden}
+.bar-zone.side-1{justify-content:flex-end;border-top:1px solid #ad8053}
+.bar-zone>span{font-size:9px;writing-mode:vertical-rl}.bar-zone b{font-size:13px}
+.bar-checkers{display:flex;flex-direction:column;gap:3px;width:100%;align-items:center}
+.bar-checkers .checker{position:static;transform:none;flex:none;--size:min(3.5vw,32px)}
+.bg-point:disabled,.bar-zone:disabled{opacity:1;cursor:default}
+.bg-point:not(:disabled){box-shadow:inset 0 0 0 3px #315c45}
+.bar-zone:not(:disabled){outline:3px solid #a8d8a0;outline-offset:-3px}
+.backgammon-layout .off-tray{width:auto;grid-template-rows:auto 1fr 1fr;border:2px solid #a97c4e;border-radius:10px;padding:8px 4px;gap:8px}
+.off-tray>strong{font-size:10px;text-transform:uppercase}
+.off-group{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;border:1px solid #c99b63;border-radius:6px;padding:8px 3px}
+.off-group>span{font-size:10px;letter-spacing:0;text-transform:none}
+.off-tray .off-group b{border:0;font-size:16px}
+.off-checkers{display:flex;flex-direction:column;gap:3px;width:90%}
+.off-checker{display:block;height:8px;border-radius:4px;box-shadow:0 1px 2px #0006}
+.off-checker.side-0{background:#eee5c9}.off-checker.side-1{background:#bd4436}
+.die:disabled{opacity:1;cursor:default}.die.die-used{opacity:.45}
+.last-roll,.opening-rolls{padding:12px;border:1px solid var(--line);border-radius:12px;margin:12px 0;background:var(--paper)}
+.last-roll p,.opening-rolls p{margin:0 0 8px}.opening-rolls>div{display:inline-flex;align-items:center;gap:12px;margin-right:24px}.opening-rolls small{display:block;margin-top:8px}
+@media(max-width:700px){
+ .backgammon-layout{grid-template-columns:minmax(0,1fr) 46px;gap:5px}
+ .backgammon-board{--bar-width:28px}
+ .checker{--size:min(4.4vw,28px)}
+ .bar-checkers .checker{--size:20px}
+ .off-tray>strong,.off-group>span{font-size:8px}
+ .off-checker{height:6px}
+}
+
+@media(max-width:500px){
+ header{padding:0 12px;gap:8px}
+ header div{font-size:16px;letter-spacing:.08em;white-space:nowrap}
+ header nav{gap:6px}
+ header nav button{font-size:12px;padding:6px}
+ header nav small{font-size:11px}
+}

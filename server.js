@@ -5,7 +5,9 @@ import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { Server } from "socket.io";
 import { newRummy, publicRummy, rummyAction, forfeitRummy } from "./lib/rummy.js";
-import { newBackgammon, backgammonAction } from "./lib/backgammon.js";
+import { newBackgammon, backgammonAction, publicBackgammon, forfeitBackgammon } from "./lib/backgammon.js";
+
+import { startBackgammonMatch, recordBackgammonResult } from "./lib/backgammon-match.js";
 
 const sourceRoot = new URL("./", import.meta.url);
 const buildHash = createHash("sha256");
@@ -29,7 +31,7 @@ const EVENT_WINDOW_MS = 10_000;
 const MAX_EVENTS_PER_WINDOW = 80;
 const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
-const PROTOCOL_VERSION = 4;
+const PROTOCOL_VERSION = 5;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -155,7 +157,8 @@ function touchRoom(room) {
 function emitRoom(room) {
   touchRoom(room);
   for (const player of room.players) {
-    const state = room.game?.kind === "rummy" ? publicRummy(room.game, player.id) : room.game;
+    const state = room.game?.kind === "rummy" ? publicRummy(room.game, player.id)
+      : room.game?.kind === "backgammon" ? publicBackgammon(room.game, player.id) : room.game;
     if (player.socketId) {
       io.to(player.socketId).emit("room", {
         protocolVersion: PROTOCOL_VERSION,
@@ -194,6 +197,11 @@ function recordRummyResult(room) {
   }
   room.match.completedGames = room.game.gameNumber;
   room.match.finished = Boolean(room.match.endAfterHand) || room.match.completedGames >= room.match.totalGames;
+}
+
+function recordResult(room) {
+  recordRummyResult(room);
+  recordBackgammonResult(room);
 }
 
 function makeRoomId() {
@@ -343,15 +351,12 @@ io.on("connection", socket => {
       if (!room) { reply(ack, { ok: true }); return; }
       if (room.game && !room.game.winner) {
         if (room.game.kind === "rummy") forfeitRummy(room.game, player.id);
-        else {
-          room.game.winner = room.game.players.find(id => id !== player.id);
-          room.game.forfeited = [player.id];
-        }
+        else forfeitBackgammon(room.game, player.id);
       }
       if (room.match) {
         room.match.endAfterHand = true;
         room.match.finished = true;
-        recordRummyResult(room);
+        recordResult(room);
       }
       room.formerPlayers = [...(room.formerPlayers || []), { id: player.id, name: player.name }];
       room.players = room.players.filter(candidate => candidate.id !== player.id);
@@ -383,6 +388,11 @@ io.on("connection", socket => {
       if (room.players.length < 2) throw Error("At least two players are required.");
       if (room.game && !room.game.winner) throw Error("The current game is still in progress.");
 
+      let starter = room.game?.winner || null;
+      if (room.gameType === "backgammon" && (!room.match || room.match.finished)) {
+        startBackgammonMatch(room, payload?.gameCount ?? 5);
+        starter = null;
+      }
       if (room.gameType === "rummy") {
         if (!room.match || room.match.finished) startRummyMatch(room, payload?.sprintCount);
         if (room.match.finished) throw Error("Start a new match first.");
@@ -391,7 +401,7 @@ io.on("connection", socket => {
       room.gameNumber += 1;
       room.game = room.gameType === "rummy"
         ? newRummy(room.players, room.gameNumber)
-        : newBackgammon(room.players);
+        : newBackgammon(room.players, { gameNumber: room.gameNumber, starter });
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {
@@ -409,7 +419,7 @@ io.on("connection", socket => {
       if (!room?.game) throw Error("Game not found.");
       if (room.game.kind === "rummy") rummyAction(room.game, player.id, action);
       else backgammonAction(room.game, player.id, action);
-      recordRummyResult(room);
+      recordResult(room);
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {

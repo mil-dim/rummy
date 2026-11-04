@@ -59,3 +59,107 @@ export function translateButtons(root, language) {
     button.lang = language;
   }
 }
+
+// Only application text is translated. Names, card faces and rule articles are
+// explicitly excluded by translateInterface; no game DOM is rebuilt.
+const labels = {
+ 'match points.':'точки.', 'BACKGAMMON':'ТАБЛА',
+ 'Connected':'Свързан', 'Connecting…':'Свързване…', 'Reconnecting…':'Повторно свързване…',
+ 'A PRIVATE GAME TABLE':'ЧАСТНА МАСА ЗА ИГРА', 'Cards, dice,':'Карти, зарове,', 'good company.':'добра компания.',
+ 'Bulgarian Rummy and Backgammon for friends on your LAN or across the internet.':'Българско реми и табла за приятели в локалната мрежа или по интернет.',
+ 'Your name':'Вашето име', 'GAME LOBBY':'ЛОБИ', 'Choose your table':'Изберете маса',
+ 'Your seat is reserved. Leave before joining another table.':'Мястото ви е запазено. Напуснете, преди да се присъедините към друга маса.',
+ 'No open rooms yet.':'Все още няма отворени стаи.', 'Open a table':'Отворете маса',
+ 'Bulgarian Rummy':'Българско реми', 'Backgammon':'Табла', 'rummy':'реми', 'backgammon':'табла',
+ 'Players':'Играчи', 'Player':'Играч', 'Rummy match':'Мач по реми', 'Backgammon match':'Мач по табла',
+ 'Sprint cycles':'Спринтови цикли', 'Number of games':'Брой партии',
+ 'With N players, every N+1 game is a double-points sprint.':'При N играчи всяка (N+1)-ва партия е спринт с двойни точки.',
+ 'Win: 1 point. Mars (opponent has borne off none): 2 points.':'Победа: 1 точка. Марс (противникът няма извадени пулове): 2 точки.',
+ 'Waiting for the host to start…':'Изчаква се домакинът да започне…', 'Your hand':'Вашите карти',
+ 'Staged melds':'Подготвени комбинации', 'Table melds':'Свалени комбинации',
+ 'Tap a card, then tap its destination. Tap Done arranging to select cards for play.':'Докоснете карта, после мястото ѝ. Натиснете „Готово с подреждането“, за да избирате карти за игра.',
+ 'Discard':'Изхвърлена карта', 'Empty':'Празно', 'Cards':'Карти', 'Raw':'Точки в ръката', 'Change':'Промяна',
+ 'Full hand':'Несвалил', 'Winner receives':'Победителят получава', 'match points':'точки',
+ '(sprint ×2)':'(спринт ×2)', 'Remaining cards / Останали карти':'Останали карти',
+ 'Cumulative standings':'Общо класиране', 'Final standings':'Крайно класиране',
+ 'Your turn':'Ваш ред', 'Your move':'Ваш ход', "'s turn":' е на ред', "'s move":' е на ход',
+ 'wins!':'печели!', 'wins — Mars!':'печели — марс!', 'wins':'печели',
+ 'Left by forfeit:':'Напуснали със служебна загуба:', '. This is the last hand of this match.':'. Това е последната партия от мача.',
+ 'Choose the card represented by the joker':'Изберете картата, която жокерът замества',
+ 'Roll to decide who starts':'Хвърлете, за да определите кой започва',
+ 'Opening tie — both players roll again.':'Равенство — двамата играчи хвърлят отново.',
+ 'Each player rolls one die. Higher roll starts, then rolls both dice again.':'Всеки хвърля един зар. По-високият започва и хвърля двата зара наново.',
+ 'Opening rolls':'Начални хвърляния', 'Waiting…':'Изчакване…', 'Opening':'Начало', 'Turn':'Ход',
+ 'No legal moves remaining — turn passed':'Няма възможни ходове — редът преминава', 'Turn completed':'Ходът приключи',
+ 'Win by forfeit':'Служебна победа', 'Mars — opponent bore off no checkers':'Марс — противникът няма извадени пулове',
+ 'Win':'Победа', 'White':'Бели', 'Red':'Червени', 'Off board':'Извадени',
+ 'Bar — hit checkers':'Преграда — ударени пулове', 'Borne-off checkers':'Извадени пулове',
+ 'White moves toward point 1; red toward point 24. Choose a die, then a highlighted point. Hit checkers must re-enter from the center bar first. Undo steps back one move at a time until the final dice move. On doubles, the fourth move commits the turn. If blocked early, undo remains available until the opponent rolls.':'Белите се движат към позиция 1, червените — към позиция 24. Изберете зар, после осветена позиция. Ударените пулове трябва първо да влязат от средната преграда. Можете да връщате местенията едно по едно преди последното. При чифт четвъртото местене потвърждава хода. Ако няма повече възможни ходове, връщането е достъпно до хвърлянето на противника.',
+ 'An update is available.':'Има налично обновяване.',
+ 'Leave permanently and forfeit this game? In Rummy, the remaining players finish this hand, then start a new match.':'Да напуснете ли окончателно със служебна загуба? При реми останалите довършват партията, след което започват нов мач.',
+ 'Leave this table permanently?':'Да напуснете ли тази маса окончателно?',
+ 'Your previous session expired. You are back in the lobby.':'Предишната ви сесия изтече. Върнахте се в лобито.',
+ 'This client is too old. Refresh the page.':'Тази версия е остаряла. Презаредете страницата.',
+ 'Something went wrong.':'Възникна грешка.', 'These cards cannot form a valid meld.':'Тези карти не образуват валидна комбинация.',
+ 'Select at least three cards.':'Изберете поне три карти.', 'A card is already assigned to another staged meld.':'Една от картите вече е в друга подготвена комбинация.',
+ 'Select one card.':'Изберете една карта.', 'Select cards from your hand.':'Изберете карти от ръката си.',
+ 'Select the exact replacement card from your hand.':'Изберете точната карта за замяна от ръката си.'
+};
+
+export function translateText(text, language) {
+ if(language!=='bg')return text;
+ const value=text.trim();
+ let translated=labels[value];
+ if(translated===undefined){
+  translated=translateControl(value,language);
+  translated=translated
+   .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
+   .replace(/^(\d+)\/(\d+) players · (.+)$/, '$1/$2 играчи · $3')
+   .replace(/Game (\d+) of (\d+)/g,'Партия $1 от $2')
+   .replace(/Game (\d+)/g,'Партия $1')
+   .replace(/ finished$/, ' приключи')
+   .replace(/Your turn$/, 'Ваш ред')
+   .replace(/SPRINT/g,'СПРИНТ')
+   .replace(/^Point (\d+), (\d+) checkers$/, 'Позиция $1, $2 пула')
+   .replace(/^Die (\d+)(, used)?$/, (_,die,used)=>`Зар ${die}${used?', използван':''}`)
+   .replace(/^(White|Red) hit checkers: (\d+)$/,(_,side,n)=>`${labels[side]} ударени пулове: ${n}`)
+   .replace(/^(White|Red) borne off: (\d+)$/,(_,side,n)=>`${labels[side]} извадени: ${n}`)
+   .replace(/^Previous tie: ([\d :]+)$/, 'Предишно равенство: $1')
+   .replace(/^Roll history — last (\d+) rolls$/, 'История — последни $1 хвърляния')
+   .replace(/^receives (\d+) point\(s\)\.$/, 'получава $1 точки.')
+   .replace(/^(\d+) cards · (\d+) raw points · (-?\d+) match points/, '$1 карти · $2 точки в ръката · $3 точки за мача')
+   .replace(' · Full hand: 100 points / Неоткрит: 100 точки',' · Несвалил: 100 точки')
+   .replace(/^Update available \(v(.+)\)\. Reload to use the latest game\.$/,'Налична е версия $1. Презаредете, за да използвате обновената игра.');
+ }
+ return text.slice(0,text.length-text.trimStart().length)+translated+text.slice(text.trimEnd().length);
+}
+
+const attributeOriginals=new WeakMap();
+export function translateInterface(root,language){
+ translateButtons(root,language);
+ const doc=root.ownerDocument||root;
+ const excluded='.playing-card,.die,.bg-point,.rules-language,[data-rules-lang],[data-no-translate],#roomName,#players,#buildInfo,.roomCard h3,script,style,select#uiLanguage';
+ const walker=doc.createTreeWalker(root,4);
+ let node;
+ while((node=walker.nextNode())){
+  if(node.parentElement?.closest(excluded))continue;
+  const saved=originals.get(node);
+  const english=saved&&node.nodeValue===saved.rendered?saved.english:node.nodeValue;
+  const rendered=translateText(english,language);
+  if(node.nodeValue!==rendered)node.nodeValue=rendered;
+  originals.set(node,{english,rendered});
+ }
+ for(const element of root.querySelectorAll('[placeholder],[aria-label]')){
+  if(element.closest('.playing-card,.rules-language,[data-no-translate],#uiLanguage'))continue;
+  const saved=attributeOriginals.get(element)||{};
+  for(const attr of ['placeholder','aria-label']){
+   if(!element.hasAttribute(attr))continue;
+   const current=element.getAttribute(attr),previous=saved[attr];
+   const english=previous&&current===previous.rendered?previous.english:current;
+   const rendered=translateText(english,language);
+   element.setAttribute(attr,rendered);saved[attr]={english,rendered};
+  }
+  attributeOriginals.set(element,saved);
+ }
+ doc.documentElement.lang=language;
+}

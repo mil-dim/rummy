@@ -12,11 +12,21 @@ try{
  for(const [p,name] of [[a,'Milen'],[b,'Ilia']]){p.on('pageerror',e=>errors.push(e.message));await p.goto('http://127.0.0.1:18091');await p.locator('#name').fill(name);await p.locator('#identity button').click()}
  await a.locator('#uiLanguage').selectOption('bg');
  assert.equal(await a.locator('#newRoom').innerText(),'Нова стая');
+ assert.equal(await a.locator('#lobby h2').innerText(),'Изберете маса');
+ assert.equal(await a.locator('#name').getAttribute('placeholder'),'Вашето име');
+ assert.equal(await a.locator('html').getAttribute('lang'),'bg');
  assert.equal(await a.locator('#leaveGame').innerText(),'Напусни играта');
  await a.locator('#uiLanguage').selectOption('en');assert.equal(await a.locator('#newRoom').innerText(),'New room');
  await a.locator('#uiLanguage').selectOption('bg');
- await a.locator('#newRoom').click();await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();await a.locator('#bgMatchGo').click();
+ await a.locator('#newRoom').click();await a.locator('#createName').fill('Your hand');await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();await a.locator('#bgMatchGo').click();
  assert.equal(await a.locator('#roll').innerText(),'Хвърли за начало');
+ assert.equal(await a.locator('#roomName').innerText(),'Your hand');
+ assert.match(await a.locator('.board-hint').innerText(),/Белите се движат/);
+ assert.equal(await a.locator('.bar-zone').first().locator('span').innerText(),'Бели');
+ await a.locator('#uiLanguage').selectOption('en');
+ assert.match(await a.locator('.board-hint').innerText(),/White moves/);
+ assert.equal(await a.locator('#roomName').innerText(),'Your hand');
+ await a.locator('#uiLanguage').selectOption('bg');
  await a.locator('#roll').click();await b.locator('#roll').click();await a.waitForFunction(()=>document.querySelectorAll('.roll-history li').length===2);
  const lines=await a.locator('.roll-history li').allTextContents();assert.equal(lines.length,2);assert.match(lines[0],/#2/);assert.match(lines[1],/#1/);
  const token=await a.evaluate(()=>{localStorage.setItem('rummyOrder:keep','["saved-card"]');return localStorage.token});

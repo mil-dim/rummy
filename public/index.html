@@ -16,13 +16,13 @@
     </section>
     <section id="lobby" hidden>
       <div class="title"><div><p class="eyebrow">GAME LOBBY</p><h2>Choose your table</h2></div><button id="newRoom">New room</button></div>
-      <div id="resumeArea" class="actions" hidden><button id="resumeGame">Resume game</button><button id="leaveLobby" class="ghost">Leave game</button><span>Your seat is reserved. Leave before joining another table.</span></div>
+      <div id="resumeArea" class="actions" hidden><button id="resumeGame">Resume game</button><button id="leaveLobby" class="ghost">Leave game</button><span id="resumeHint">Your seat is reserved. Leave before joining another table.</span></div>
       <div id="rooms" class="rooms"></div>
     </section>
     <section id="room" hidden>
       <div class="title"><div><p class="eyebrow" id="roomCode"></p><h2 id="roomName"></h2></div><button id="start">Start game</button></div>
       <div class="actions"><button id="backLobby" class="ghost">Back to lobby</button><button id="leaveGame" class="ghost">Leave game</button></div>
-      <div id="players" class="players"></div><div id="game"></div>
+      <div id="players" class="players"></div><p id="watchers"></p><p id="watchingNotice" class="notice" hidden>Watching — you are not seated and cannot make moves.</p><div id="game"></div>
     </section>
   </main>
   <dialog id="create"><form method="dialog"><h2>Open a table</h2>

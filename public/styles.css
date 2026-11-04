@@ -126,3 +126,6 @@ header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 .current-seat{border-color:var(--green);background:var(--paper)}
 .pinned-checker{outline:3px dashed #252c75;outline-offset:1px}
 .concession{margin:12px 0}.concession p{margin:0}
+
+.member-name{display:inline-block;margin-right:6px}.room-members,.room-watchers{font-size:14px;overflow-wrap:anywhere}
+.room-status{font-weight:700}.hand-counts{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.hand-counts h3{width:100%}.hand-counts p{margin:0 0 12px}

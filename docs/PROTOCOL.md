@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **6**
+Protocol version: **7**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -198,3 +198,33 @@ Board coordinates remain authoritative 0..23. The client maps each player's
 starting point to displayed 24 and home to 1..6, preserving physical IDs in move
 requests. Gulbara red coordinates wrap half a board from white. Player color
 badges do not change with the starter. Spectators use the white perspective.
+
+
+## Watchers (protocol 7)
+
+`watchRoom {id}` joins a read-only watcher membership in any existing room,
+including full, waiting, ongoing and finished games. A session has exactly one
+membership, either a player seat or a watcher place. Stop watching before joining
+another room; leaving a player seat still uses the explicit permanent-leave flow.
+The server never auto-forfeits or converts a player into a watcher.
+
+Room payloads add viewer-specific `role: player|watcher` and a `watchers` roster.
+Lobby entries retain numeric `players` and add `playerList`, `watchers`, `status`
+(waiting/playing/finished), and optional Backgammon `variant`. Roster items contain
+only id/name/connected; socket IDs and session tokens never appear in rosters.
+
+Watcher game payloads use a null viewer for the existing public projections.
+During Rummy play all hands are counts, stock is a count, and canUndo is false.
+Melds, discard, turns and scores remain public. After the hand finishes, remaining
+hands are revealed as scoring evidence, as for seated players. Backgammon watchers
+see board, dice and history with no legalMoves, undo or concession authority.
+Server action/start/join/create checks require the appropriate player membership;
+supplying another player's ID cannot elevate a watcher.
+
+`leaveRoom` as a watcher stops watching, clears all tabs for the session and does
+not forfeit, transfer host, change scores or end a match. Back to lobby retains
+watcher membership and Resume watching returns to the table. Reload/reconnect
+restores it. Disconnected watchers retain a ten-minute reconnect grace (pruned on
+the minute cleanup tick). Each room allows at most 50 watcher identities.
+Watching activity never refreshes player room activity, so observers cannot keep
+abandoned rooms alive indefinitely. Room deletion notifies watchers with roomLeft.

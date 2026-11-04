@@ -38,3 +38,10 @@ test('three-variant rounds and concession confirmations have Bulgarian labels',(
  assert.equal(translateControl('Concede Mars — 2 points','bg'),'Предай се с марс — 2 точки');
  assert.equal(translateText('Gulbara · Round 2 of 3 · Game 5 of 9','bg'),'Гюлбара · Кръг 2 от 3 · Партия 5 от 9');
 });
+
+test('watcher controls and read-only notice translate into Bulgarian',()=>{
+ assert.equal(translateControl('Watch','bg'),'Гледай');
+ assert.equal(translateControl('Stop watching','bg'),'Спри наблюдението');
+ assert.equal(translateText('Watchers','bg'),'Наблюдатели');
+ assert.equal(translateText('Cards remaining','bg'),'Останали карти');
+});

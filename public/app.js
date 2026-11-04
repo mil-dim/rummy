@@ -289,13 +289,13 @@ function renderBackgammon(game){
  const historyHtml=history.length?`<details class="roll-history"><summary>Roll history — last ${history.length} rolls</summary><ol>${history.map(entry=>`<li>#${Number(entry.id)} · ${playerName(entry.playerId)} · ${entry.kind==="opening"?"Opening":"Turn"} · <strong>${entry.dice.map(Number).join(" : ")}</strong></li>`).join("")}</ol></details>`:"";
  $("#game").innerHTML=`<p>${progress}</p><div class="bg-status"><strong>${status}</strong>
  <div class="dice">${game.dice.map((die,index)=>dieHtml(die,{index,disabled:!active||!legal.some(move=>move.dieIndex===index),used:game.used.includes(index)})).join("")}</div>
- ${!game.winner?`<div class="actions"><button id="bgUndo" ${game.canUndo?"":"disabled"}>Undo first move</button><button id="roll" ${opening?game.openingRolls[mySide]===null?"":"disabled":active&&game.phase==="roll"?"":"disabled"}>${opening?"Roll to start":"Roll"}</button></div>`:""}</div>
+ ${!game.winner?`<div class="actions"><button id="bgUndo" ${game.canUndo?"":"disabled"}>Undo last move</button><button id="roll" ${opening?game.openingRolls[mySide]===null?"":"disabled":active&&game.phase==="roll"?"":"disabled"}>${opening?"Roll to start":"Roll"}</button></div>`:""}</div>
  ${game.gameNumber===1&&(opening||(!game.dice.length&&!game.lastTurn))?openingHtml:""}
  ${game.lastTurn?`<section class="last-roll"><p>${playerName(game.lastTurn.playerId)}: ${game.lastTurn.reason==="blocked"?"No legal moves remaining — turn passed":"Turn completed"}</p><div class="dice">${game.lastTurn.dice.map((die,index)=>dieHtml(die,{used:game.lastTurn.used.includes(index)})).join("")}</div></section>`:""}
  ${game.winner?`<section class="results"><h3>${game.scores?.forfeit?"Win by forfeit":game.scores?.mars?"Mars — opponent bore off no checkers":"Win"}</h3><p>${playerName(game.winner)} receives ${Number(game.scores?.awarded||0)} point(s).</p></section>${standings()}`:""}
  ${historyHtml}
  <div class="backgammon-layout"><div class="backgammon-wrap"><div class="backgammon-board"><div class="bg-row top">${row(top,"top")}</div><div class="bg-row bottom">${row(bottom,"bottom")}</div><div class="center-bar" aria-label="Bar — hit checkers">${barSide(0)}${barSide(1)}</div></div></div><aside class="off-tray" aria-label="Borne-off checkers"><strong>Off board</strong>${offSide(0)}${offSide(1)}</aside></div>
- <p class="board-hint">White moves toward point 1; red toward point 24. Choose a die, then a highlighted point. Hit checkers must re-enter from the center bar first. Undo is available only before the second move (or the opponent's next roll).</p>`;
+ <p class="board-hint">White moves toward point 1; red toward point 24. Choose a die, then a highlighted point. Hit checkers must re-enter from the center bar first. Undo steps back one move at a time until the final dice move. On doubles, the fourth move commits the turn. If blocked early, undo remains available until the opponent rolls.</p>`;
  let die=null;
  function chooseDie(index){
    die=index;document.querySelectorAll("[data-die]").forEach(button=>button.classList.toggle("chosen",Number(button.dataset.die)===die));

@@ -77,11 +77,11 @@ test('first move undo restores hits, bar, dice and turn; second move commits',()
   const g=position();put(g,6,0);put(g,5,1);const before=structuredClone(g);
   move(g,6,0);assert.equal(g.bar[1],1);assert.equal(publicBackgammon(g,'p1').canUndo,true);
   assert.equal(publicBackgammon(g,'p2').canUndo,false);
-  assert.throws(()=>backgammonAction(g,'p2',{type:'undo'}),/first move/);
+  assert.throws(()=>backgammonAction(g,'p2',{type:'undo'}),/No move can be undone/);
   backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,before);
   move(g,6,0);move(g,5,1);
   assert.equal(publicBackgammon(g,'p1').canUndo,false);
-  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/first move/);
+  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/No move can be undone/);
 });
 
 test('single playable move can be undone until opponent rolls',t=>{
@@ -89,13 +89,13 @@ test('single playable move can be undone until opponent rolls',t=>{
   move(g,'bar',1);assert.equal(g.turn,1);assert.equal(publicBackgammon(g,'p1').canUndo,true);
   backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,before);
   move(g,'bar',1);rolling(t,[3,4]);backgammonAction(g,'p2',{type:'roll'});
-  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/first move/);
+  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/No move can be undone/);
 });
 
 test('undo is private and cannot reroll, undo a win or a forfeit',t=>{
   const g=position([]);g.phase='roll';rolling(t,[1,2]);
   backgammonAction(g,'p1',{type:'roll'});
-  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/first move/);
+  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/No move can be undone/);
   const h=position();put(h,0,0);h.borneOff=[14,0];move(h,0,1);
   assert.equal(h.scores.awarded,2);assert.equal(h.scores.mars,true);
   assert.equal(publicBackgammon(h,'p1').canUndo,false);
@@ -174,4 +174,49 @@ test('roll history is bounded and random source failure does not consume a turn'
   t.mock.restoreAll();t.mock.method(diceRandom,'roll',()=>2);
   for(let i=0;i<60;i++){g.phase='roll';g.dice=[];g.used=[];backgammonAction(g,'p1',{type:'roll'})}
   assert.equal(g.rollHistory.length,50);assert.equal(g.rollHistory[0].id,11);assert.equal(g.rollHistory.at(-1).id,60);
+});
+
+
+test('doubles undo each of the first three moves, including hits, then fourth move commits',()=>{
+  const g=position([1,1,1,1]);put(g,8,0);put(g,7,1);
+  const snapshots=[structuredClone(g)];
+  for(const [i,from] of [8,7,6].entries()){
+    move(g,from,i);snapshots.push(structuredClone(g));
+    assert.equal(publicBackgammon(g,'p1').canUndo,true);
+    assert.equal(publicBackgammon(g,'p2').canUndo,false);
+  }
+  assert.equal(g.bar[1],1);
+  for(const expected of snapshots.slice(0,3).reverse()){
+    backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,expected);
+  }
+  assert.equal(g.bar[1],0);assert.equal(g.points[7].owner,1);
+  assert.equal(publicBackgammon(g,'p1').canUndo,false);
+  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/No move/);
+  for(const [i,from] of [8,7,6,5].entries())move(g,from,i);
+  assert.equal(g.turn,1);assert.equal(g.lastTurn.reason,'complete');
+  assert.equal(publicBackgammon(g,'p1').canUndo,false);
+  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/No move/);
+});
+
+test('doubles undo restores borne-off checkers one move at a time',()=>{
+  const g=position([2,2,2,2]);put(g,5,0);put(g,1,0,2);g.borneOff[0]=12;
+  const initial=structuredClone(g);
+  move(g,5,0);const afterOne=structuredClone(g);
+  move(g,1,1);const afterTwo=structuredClone(g);
+  assert.equal(g.borneOff[0],13);move(g,3,2);
+  backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,afterTwo);
+  backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,afterOne);assert.equal(g.borneOff[0],12);
+  backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,initial);
+});
+
+test('blocked partial doubles keep the undo stack only until the opponent rolls',t=>{
+  const g=position([2,2,2,2]);put(g,7,0);put(g,1,1,2);
+  const initial=structuredClone(g);
+  move(g,7,0);const afterOne=structuredClone(g);move(g,5,1);
+  assert.equal(g.turn,1);assert.equal(g.lastTurn.reason,'blocked');
+  backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,afterOne);
+  backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,initial);
+  move(g,7,0);move(g,5,1);rolling(t,[3,4]);backgammonAction(g,'p2',{type:'roll'});
+  assert.equal(publicBackgammon(g,'p1').canUndo,false);
+  assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/No move/);
 });

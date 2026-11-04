@@ -267,3 +267,16 @@ test('Rummy starter alternates for two players and rotates for larger tables',()
     assert.equal(newRummy(roster,1).turn,0,'new match resets the starting order');
   }
 });
+
+test('remaining hands are private during play and revealed to everyone only after finish', () => {
+ const g=newRummy([{id:'a'},{id:'b'},{id:'c'}],1);
+ for(const viewer of ['a','b','c','spectator']){
+  const view=publicRummy(g,viewer);
+  for(const id of g.players)assert.deepEqual(view.hands[id],id===viewer?g.hands[id]:{count:13});
+ }
+ g.winner='a';g.forfeited=['c'];
+ for(const viewer of ['a','b','c','spectator']){
+  const view=publicRummy(g,viewer);
+  for(const id of g.players)assert.deepEqual(view.hands[id],g.hands[id]);
+ }
+});

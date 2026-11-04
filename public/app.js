@@ -107,9 +107,9 @@ function act(action,onSuccess){
 }
 
 function declared(card){return card.rank==="JOKER"&&card.represents?`${card.represents.rank}${card.represents.suit}`:""}
-function cardHtml(card,{hand=false}={}){
+function cardHtml(card,{hand=false,proof=false}={}){
  const joker=card.rank==="JOKER",red=!joker&&"♥♦".includes(card.suit),label=declared(card);
- return `<button class="playing-card ${red?"red":"black"} ${joker?"joker":""} ${(hand&&arranging?arrangeFrom===card.id:selected.has(card.id))?"selected":""}" ${hand?`data-hand-card="${esc(card.id)}" draggable="true"`:""} aria-label="${joker?`Joker ${esc(label)}`:`${esc(card.rank)} of ${esc(card.suit)}`}">
+ return `<button class="playing-card ${red?"red":"black"} ${joker?"joker":""} ${(!proof&&(hand&&arranging?arrangeFrom===card.id:selected.has(card.id)))?"selected":""}" ${proof?"disabled":""} ${hand?`data-hand-card="${esc(card.id)}" draggable="true"`:""} aria-label="${joker?`Joker ${esc(label)}`:`${esc(card.rank)} of ${esc(card.suit)}`}">
  <span class="corner top"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span>
  <span class="pip">${joker?(label?`JOKER<br><small>→ ${esc(label)}</small>`:"JOKER"):esc(card.suit)}</span>
  <span class="corner bottom"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span></button>`;
@@ -221,6 +221,13 @@ function resultTable(game){
  const rows=game.players.map(id=>{const score=game.scores.players[id];return `<tr><td>${playerName(id)}${id===game.winner?" 🏆":""}</td><td>${score.cards}</td><td>${score.raw}</td><td>${signedPoints(score.match)}</td><td>${score.fullHand?"Full hand":""}</td></tr>`}).join("");
  return `<section class="results"><h2>${playerName(game.winner)} wins!</h2><table><thead><tr><th>Player</th><th>Cards</th><th>Raw</th><th>Change</th><th></th></tr></thead><tbody>${rows}</tbody></table><p>Winner receives <strong>${game.scores.awarded}</strong> match points${game.sprint?" (sprint ×2)":""}.</p></section>`;
 }
+function remainingHands(game){
+ if(!game.winner)return "";
+ return `<section class="remaining-hands"><h3>Remaining cards / Останали карти</h3>${game.players.filter(id=>id!==game.winner).map(id=>{
+  const score=game.scores.players[id],cards=game.hands[id];
+  return `<article class="remaining-player"><h4>${playerName(id)}</h4><p>${score.cards} cards · ${score.raw} raw points · ${signedPoints(score.match)} match points${score.fullHand?" · Full hand: 100 points / Неоткрит: 100 точки":""}</p><div class="remaining-cards">${Array.isArray(cards)?cards.map(card=>cardHtml(card,{proof:true})).join(""):""}</div></article>`;
+ }).join("")}</section>`;
+}
 function standings(){
  if(!room.match)return "";
  const rows=Object.entries(room.match.cumulative).sort((a,b)=>b[1]-a[1]).map(([id,score])=>`<tr><td>${playerName(id)}</td><td>${signedPoints(score)}</td></tr>`).join("");
@@ -241,7 +248,7 @@ function renderRummy(game){
  const status=game.winner?`${progress} finished`:`${game.sprint?"⚡ SPRINT ×2 · ":""}${progress} · ${turn?"Your turn":playerName(game.players[game.turn])+"'s turn"}`;
  const discard=game.discard.at(-1);
  $("#game").innerHTML=`<p class="game-status">${status}</p>${game.forfeited?.length?`<p class="notice">Left by forfeit: ${game.forfeited.map(playerName).join(", ")}. This is the last hand of this match.</p>`:""}
- ${game.winner?resultTable(game)+standings():""}
+ ${game.winner?resultTable(game)+standings()+remainingHands(game):""}
  ${!game.winner?`<div class="draw-area"><button id="stock" ${!active||game.phase!=="draw"?"disabled":""}>Draw stock <b>${Number(game.stock.count)}</b></button><div class="discard-pile"><span>Discard</span>${discard?cardHtml(discard):"<em>Empty</em>"}<button id="discardDraw" ${!active||game.phase!=="draw"||!discard?"disabled":""}>Take card</button></div></div>`:""}
  <div class="actions"><h3>Your hand</h3>${!game.winner?'<button id="arrangeHand" class="ghost" aria-pressed="'+arranging+'">'+(arranging?"Done arranging":"Arrange cards")+'</button>':""}</div>
  ${arranging&&!game.winner?'<p class="board-hint">Tap a card, then tap its destination. Tap Done arranging to select cards for play.</p>':""}

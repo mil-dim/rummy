@@ -112,3 +112,8 @@ header{height:auto;min-height:72px;flex-wrap:wrap;gap:10px;padding-top:10px;padd
 header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 #uiLanguage{padding:7px 8px;font-size:13px}
 @media(max-width:500px){header nav{gap:5px}#uiLanguage{padding:5px;font-size:12px}}
+
+.remaining-player{padding:14px;margin:10px 0;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.remaining-player h4{margin:0}.remaining-player p{margin:8px 0;font-size:14px}
+.remaining-cards{display:flex;flex-wrap:wrap;gap:5px}
+.remaining-cards .playing-card:disabled{opacity:1;cursor:default;flex-shrink:0}

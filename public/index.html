@@ -6,7 +6,7 @@
   <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css?v=__APP_BUILD__">
 </head>
 <body>
-  <header><div><b>TABLETOP</b><span>LAN</span></div><nav><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
+  <header><div><b>TABLETOP</b><span>LAN</span></div><nav><select id="uiLanguage" aria-label="Button language / Език на бутоните"><option value="en">EN</option><option value="bg">БГ</option></select><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
   <section id="updateNotice" class="update-notice" role="status" hidden><span id="updateMessage">An update is available.</span><button id="reloadUpdate">Reload updated game</button></section>
   <main>
     <section id="welcome" class="panel">
@@ -45,11 +45,11 @@
   </form></dialog>
   <dialog id="rules"><form method="dialog" class="rules-form">
     <div class="title"><h2>Rules / Правила</h2><button value="cancel" class="ghost">Close</button></div>
-    <div class="actions"><button type="button" data-rules-lang="en">English</button><button type="button" data-rules-lang="bg">Български</button></div>
+    <div class="actions"><button type="button" data-rules-lang="en" lang="en">English</button><button type="button" data-rules-lang="bg" lang="bg">Български</button></div>
     <article class="rules-language" data-language="en">
       <h3>Bulgarian Rummy</h3>
       <ul>
-        <li>Two decks plus two jokers; 13 cards per player. One face-up discard starts the game.</li>
+        <li>Two decks plus two jokers; 13 cards per player. One face-up discard starts the game. The starting player rotates each game.</li>
         <li>Draw from stock or take the face-up discard, then meld/add cards and discard one card.</li>
         <li>Your first opening may contain several separate valid melds totaling at least 44 points. A card belongs to only one meld.</li>
         <li>If you have not opened, taking the discard obliges you to complete a valid opening that turn. Going out is allowed below 44.</li>
@@ -63,7 +63,7 @@
     <article class="rules-language" data-language="bg" hidden>
       <h3>Български Реми</h3>
       <ul>
-        <li>Две тестета и два жокера; по 13 карти. След раздаването една карта се обръща за начало на купчината.</li>
+        <li>Две тестета и два жокера; по 13 карти. След раздаването една карта се обръща за начало на купчината. Започващият играч се сменя по ред във всяка партия.</li>
         <li>Тегли се от тестето или се взема горната изхвърлена карта, след което се сваля/долепя и се изхвърля една карта.</li>
         <li>Първото сваляне може да съдържа няколко отделни валидни комбинации с общо поне 44 точки. Една физическа карта участва само в една комбинация.</li>
         <li>Несвалил играч, който вземе изхвърлена карта, трябва да направи валидно първо сваляне в същия ход. Затваряне под 44 е разрешено.</li>

@@ -1,4 +1,8 @@
+import { translateButtons } from "./i18n.js";
+
 const socket=io(), $=selector=>document.querySelector(selector);
+let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
+function localizeControls(root=document){translateButtons(root,uiLanguage)}
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
@@ -33,7 +37,7 @@ function identified(response){
 $("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{token:localStorage.token,name:$("#name").value},identified)};
 
 let lobbyRooms=[];
-function renderLobby(){const rooms=lobbyRooms;$("#rooms").innerHTML=rooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button></article>`).join("")||"<p>No open rooms yet.</p>";$("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room)}
+function renderLobby(){const rooms=lobbyRooms;$("#rooms").innerHTML=rooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button></article>`).join("")||"<p>No open rooms yet.</p>";$("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room);localizeControls()}
 socket.on("lobby",rooms=>{lobbyRooms=rooms;renderLobby()});
 document.addEventListener("click",event=>{const id=event.target.dataset.join;if(id&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("joinRoom",{id},response=>!response.ok&&toast(response.error))}});
 $("#newRoom").onclick=()=>$("#create").showModal();
@@ -171,7 +175,7 @@ function chooseJokerCard(options){
    }
    dialog.querySelector(".joker-cancel").onclick=()=>finish(null);
    dialog.addEventListener("cancel",event=>{event.preventDefault();finish(null)});
-   document.body.append(dialog);dialog.showModal();
+   document.body.append(dialog);localizeControls(dialog);dialog.showModal();
  });
 }
 async function jokerAssignments(cards,existing=[]){
@@ -207,8 +211,9 @@ async function jokerAssignments(cards,existing=[]){
 
 function renderGame(){
  const game=room?.game;
- if(!game){$("#game").innerHTML="<div class='notice'>Waiting for the host to start…</div>";return}
+ if(!game){$("#game").innerHTML="<div class='notice'>Waiting for the host to start…</div>";localizeControls();return}
  game.kind==="rummy"?renderRummy(game):renderBackgammon(game);
+ localizeControls();
 }
 
 const signedPoints=value=>Number(value)>0?`+${Number(value)}`:String(Number(value));
@@ -309,6 +314,16 @@ function renderBackgammon(game){
  $("#roll")?.addEventListener("click",()=>act({type:"roll"}));
  $("#bgUndo")?.addEventListener("click",()=>act({type:"undo"}));
 }
+
+$("#uiLanguage").value=uiLanguage;
+$("#uiLanguage").onchange=()=>{
+ uiLanguage=$("#uiLanguage").value==="bg"?"bg":"en";
+ localStorage.uiLanguage=uiLanguage;
+ localizeControls();
+ document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
+};
+localizeControls();
+document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 
 $("#rulesOpen").onclick=()=>$("#rules").showModal();
 document.querySelectorAll("[data-rules-lang]").forEach(button=>button.onclick=()=>{

@@ -107,3 +107,8 @@ dialog{border:0;border-radius:18px;background:var(--paper);box-shadow:0 24px 80p
 .update-notice button{padding:8px 12px}
 .roll-history{margin:12px 0;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
 .roll-history summary{cursor:pointer;font-weight:700}.roll-history ol{list-style:none;padding:0;max-height:220px;overflow:auto;font-size:14px;line-height:1.8}
+
+header{height:auto;min-height:72px;flex-wrap:wrap;gap:10px;padding-top:10px;padding-bottom:10px}
+header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
+#uiLanguage{padding:7px 8px;font-size:13px}
+@media(max-width:500px){header nav{gap:5px}#uiLanguage{padding:5px;font-size:12px}}

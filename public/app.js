@@ -1,22 +1,22 @@
-import { translateButtons } from "./i18n.js";
+import { translateInterface, translateText } from "./i18n.js";
 
 const socket=io(), $=selector=>document.querySelector(selector);
 let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
-function localizeControls(root=document){translateButtons(root,uiLanguage)}
+function localizeControls(root=document){translateInterface(root,uiLanguage)}
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
-const playerName=id=>esc(player(id)?.name||"Player");
-const toast=message=>{const element=$("#toast");element.textContent=String(message||"Something went wrong.");element.style.display="block";setTimeout(()=>element.style.display="none",3000)};
+const playerName=id=>`<span data-no-translate>${esc(player(id)?.name||"Player")}</span>`;
+const toast=message=>{const element=$("#toast");element.textContent=translateText(String(message||"Something went wrong."),uiLanguage);element.style.display="block";setTimeout(()=>element.style.display="none",3000)};
 
 socket.on("connect",()=>{
- $("#status").textContent="Connected";
+ $("#status").textContent="Connected";localizeControls();
  pendingRoom=null;
  checkServerVersion();
  const token=localStorage.token;
  if(token)socket.emit("identify",{token,name:localStorage.name},identified);
 });
-socket.on("disconnect",()=>$("#status").textContent="Reconnecting…");
+socket.on("disconnect",()=>{$("#status").textContent="Reconnecting…";localizeControls()});
 function clearRoomState(){
  room=null;pendingRoom=null;selected.clear();stagedMelds=[];arranging=false;arrangeFrom=null;draggedCard=null;
  $("#game").replaceChildren();
@@ -55,7 +55,7 @@ function leaveGame(){
  const message=room.game&&!room.game.winner
    ?"Leave permanently and forfeit this game? In Rummy, the remaining players finish this hand, then start a new match."
    :"Leave this table permanently?";
- if(confirm(message))socket.emit("leaveRoom",{},response=>{if(!response?.ok)toast(response?.error)});
+ if(confirm(translateText(message,uiLanguage)))socket.emit("leaveRoom",{},response=>{if(!response?.ok)toast(response?.error)});
 }
 $("#leaveGame").onclick=leaveGame;
 $("#leaveLobby").onclick=leaveGame;
@@ -348,7 +348,7 @@ function observeServerVersion(info){
  $("#buildInfo").textContent=String(info.environment||"unspecified")+" · v"+(loadedVersion||info.version)+" · build "+(loadedBuild||info.build);
  if(loadedBuild&&loadedBuild!==info.build){
    $("#updateMessage").textContent="Update available (v"+info.version+"). Reload to use the latest game.";
-   $("#updateNotice").hidden=false;
+   $("#updateNotice").hidden=false;localizeControls();
  }
 }
 async function checkServerVersion(){

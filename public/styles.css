@@ -102,3 +102,8 @@ dialog{border:0;border-radius:18px;background:var(--paper);box-shadow:0 24px 80p
  header nav button{font-size:12px;padding:6px}
  header nav small{font-size:11px}
 }
+
+.update-notice{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;padding:12px 20px;background:#fff1ba;border-bottom:1px solid #c99b43}
+.update-notice button{padding:8px 12px}
+.roll-history{margin:12px 0;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.roll-history summary{cursor:pointer;font-weight:700}.roll-history ol{list-style:none;padding:0;max-height:220px;overflow:auto;font-size:14px;line-height:1.8}

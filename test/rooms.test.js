@@ -24,7 +24,7 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   t.after(() => child.kill());
   await once(child.stdout, 'data');
   // Old unversioned URLs and new versioned URLs must both revalidate.
-  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.5', '/styles.css?v=1.0.5', '/version']) {
+  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.6', '/styles.css?v=1.0.6', '/version']) {
     const response = await fetch('http://127.0.0.1:18089' + path);
     assert.equal(response.status, 200);
     const policy = response.headers.get('cache-control');
@@ -45,6 +45,12 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
     }
     await response.arrayBuffer();
   }
+  const version=await (await fetch('http://127.0.0.1:18089/version')).json();
+  const html=await (await fetch('http://127.0.0.1:18089/')).text();
+  assert.ok(html.includes('name="app-build" content="'+version.build+'"'));
+  assert.ok(html.includes('/app.js?v='+version.build));
+  assert.ok(html.includes('/styles.css?v='+version.build));
+  assert.ok(!html.includes('__APP_BUILD__'));
   const clients=[];
   t.after(() => clients.forEach(client=>client.disconnect()));
   async function connect(token, name='Player') {
@@ -58,7 +64,12 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
     socket.identity=identity;
     return socket;
   }
+  const expired=await connect('expired-session-token','Returning');
+  assert.equal(expired.identity.sessionReplaced,true);
+  assert.equal(expired.identity.resumed,false);
+  assert.notEqual(expired.identity.token,'expired-session-token');
   const a=await connect(undefined,'Host'), b=await connect(undefined,'Guest');
+  assert.equal(a.identity.sessionReplaced,false);
   const created=await send(a,'createRoom',{gameType:'rummy'});
   assert.equal((await send(b,'joinRoom',{id:created.id})).ok,true);
   const transferred = waitForEvent(b, 'room', state => state.hostId === b.identity.player.id);
@@ -70,6 +81,7 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   assert.equal((await send(b,'startGame',{sprintCount:2})).ok,true);
   const tab=await connect(a.identity.token,'Host');
   assert.equal(tab.identity.resumed,true);
+  assert.equal(tab.identity.sessionReplaced,false);
   assert.equal((await send(tab,'createRoom',{})).ok,false);
   const leftA = waitForEvent(a, 'roomLeft');
   const leftTab = waitForEvent(tab, 'roomLeft');

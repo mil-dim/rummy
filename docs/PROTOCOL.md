@@ -8,7 +8,7 @@ whether a move is legal.
 
 ## Session and room events
 
-- `identify { token?, name }` → `{ ok, token, player }`
+- `identify { token?, name }` → `{ ok, token, player, resumed, sessionReplaced }`
 - `createRoom { name, gameType, maxPlayers }`
 - `joinRoom { id }`
 - `leaveRoom {}`: permanently remove the authenticated player from their seat; no target player ID is accepted.
@@ -20,6 +20,7 @@ Every client event uses a Socket.IO acknowledgement shaped as either
 
 The server emits:
 
+- `serverVersion`: environment, version and build fingerprint on connection.
 - `lobby`: public room summaries.
 - `room`: `{ protocolVersion, id, name, gameType, hostId, players, formerPlayers, match, game }`.
 - `roomLeft { id }`: clears the room in all connected tabs of the leaving session.
@@ -118,3 +119,33 @@ Backgammon totals accumulate positively; Rummy zero-sum scoring is unchanged.
 
 The center bar displays each side's hit checkers exactly once. Borne-off checkers
 appear in a separate off-board tray. The browser does not decide legal moves.
+
+## Dice generation and roll history
+
+Backgammon dice use Node crypto.randomInt(1, 7) independently per physical die.
+No timestamps, counters, external services, or repeat suppression affect results.
+Opening rolls request one value; ordinary rolls request two, then doubles expand
+to four moves. Rummy's existing shuffle is unchanged.
+
+rollHistory retains up to 50 accepted rolls. Each entry contains a monotonically
+increasing per-game id, playerId, kind (opening or turn), the original one/two dice,
+and at (timestamp for diagnostics only). Rejected rolls and undo do not create
+entries. History contains past rolls, never future random values. rollNumber is
+the latest per-game id; gameNumber distinguishes games. Browser re-renders retain
+the same id until a fresh roll is accepted.
+
+## Client updates and session recovery
+
+The server renders / and /index.html with no-store and the current build embedded
+in metadata and asset query strings. Static assets still revalidate. The loaded
+client compares that embedded build to serverVersion and uncached /version on
+connect, return to a visible tab, and every 60 seconds while visible. A mismatch
+shows a reload button; it never forcibly reloads an active game. The footer keeps
+the loaded client version/build rather than mislabeling old code as the new build.
+
+Reload uses a fresh navigation URL and preserves local player data. When identify
+returns resumed:false, the client clears only transient room/game selection state
+and shows the lobby. sessionReplaced:true means the supplied token was no longer
+valid; the server has issued a new identity. A valid resumed seat and hand ordering
+are preserved. An existing page from before this feature may need one final normal
+or hard reload to load the update-aware client; a reload cannot deploy server code.

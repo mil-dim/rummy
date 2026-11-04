@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css?v=1.0.5">
+  <meta name="app-build" content="__APP_BUILD__"><meta name="app-version" content="__APP_VERSION__">
+  <title>Tabletop LAN</title><link rel="stylesheet" href="/styles.css?v=__APP_BUILD__">
 </head>
 <body>
   <header><div><b>TABLETOP</b><span>LAN</span></div><nav><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
+  <section id="updateNotice" class="update-notice" role="status" hidden><span id="updateMessage">An update is available.</span><button id="reloadUpdate">Reload updated game</button></section>
   <main>
     <section id="welcome" class="panel">
       <p class="eyebrow">A PRIVATE GAME TABLE</p><h1>Cards, dice,<br><em>good company.</em></h1>
@@ -75,5 +77,5 @@
   </form></dialog>
   <footer id="buildInfo" style="text-align:center;padding:20px;font-size:12px;opacity:.7" aria-label="Deployment information"></footer>
   <div id="toast"></div>
-  <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js?v=1.0.5"></script>
+  <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js?v=__APP_BUILD__"></script>
 </body></html>

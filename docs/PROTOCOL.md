@@ -151,3 +151,15 @@ and shows the lobby. sessionReplaced:true means the supplied token was no longer
 valid; the server has issued a new identity. A valid resumed seat and hand ordering
 are preserved. An existing page from before this feature may need one final normal
 or hard reload to load the update-aware client; a reload cannot deploy server code.
+
+## Starting order and button language
+
+Rummy game N starts with player (N-1) modulo player count, without reordering the
+player list. Two-player games alternate starters; larger tables rotate through
+seat order. A new match resets gameNumber and starts with the first seat again.
+
+The header EN/БГ selector translates action and dialog buttons in both games.
+The preference is stored locally as uiLanguage and survives reload. Changing
+language only updates control text; it does not submit a move, rebuild the game,
+clear selected/staged cards, or change player/room names. The rules dialog starts
+in the selected language. Other status/help text is not fully localized yet.

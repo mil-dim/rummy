@@ -1,4 +1,8 @@
+import { translateButtons } from "./i18n.js";
+
 const socket=io(), $=selector=>document.querySelector(selector);
+let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
+function localizeControls(root=document){translateButtons(root,uiLanguage)}
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
@@ -33,7 +37,7 @@ function identified(response){
 $("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{token:localStorage.token,name:$("#name").value},identified)};
 
 let lobbyRooms=[];
-function renderLobby(){const rooms=lobbyRooms;$("#rooms").innerHTML=rooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button></article>`).join("")||"<p>No open rooms yet.</p>";$("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room)}
+function renderLobby(){const rooms=lobbyRooms;$("#rooms").innerHTML=rooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button></article>`).join("")||"<p>No open rooms yet.</p>";$("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room);localizeControls()}
 socket.on("lobby",rooms=>{lobbyRooms=rooms;renderLobby()});
 document.addEventListener("click",event=>{const id=event.target.dataset.join;if(id&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("joinRoom",{id},response=>!response.ok&&toast(response.error))}});
 $("#newRoom").onclick=()=>$("#create").showModal();
@@ -103,9 +107,9 @@ function act(action,onSuccess){
 }
 
 function declared(card){return card.rank==="JOKER"&&card.represents?`${card.represents.rank}${card.represents.suit}`:""}
-function cardHtml(card,{hand=false}={}){
+function cardHtml(card,{hand=false,proof=false}={}){
  const joker=card.rank==="JOKER",red=!joker&&"♥♦".includes(card.suit),label=declared(card);
- return `<button class="playing-card ${red?"red":"black"} ${joker?"joker":""} ${(hand&&arranging?arrangeFrom===card.id:selected.has(card.id))?"selected":""}" ${hand?`data-hand-card="${esc(card.id)}" draggable="true"`:""} aria-label="${joker?`Joker ${esc(label)}`:`${esc(card.rank)} of ${esc(card.suit)}`}">
+ return `<button class="playing-card ${red?"red":"black"} ${joker?"joker":""} ${(!proof&&(hand&&arranging?arrangeFrom===card.id:selected.has(card.id)))?"selected":""}" ${proof?"disabled":""} ${hand?`data-hand-card="${esc(card.id)}" draggable="true"`:""} aria-label="${joker?`Joker ${esc(label)}`:`${esc(card.rank)} of ${esc(card.suit)}`}">
  <span class="corner top"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span>
  <span class="pip">${joker?(label?`JOKER<br><small>→ ${esc(label)}</small>`:"JOKER"):esc(card.suit)}</span>
  <span class="corner bottom"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span></button>`;
@@ -171,7 +175,7 @@ function chooseJokerCard(options){
    }
    dialog.querySelector(".joker-cancel").onclick=()=>finish(null);
    dialog.addEventListener("cancel",event=>{event.preventDefault();finish(null)});
-   document.body.append(dialog);dialog.showModal();
+   document.body.append(dialog);localizeControls(dialog);dialog.showModal();
  });
 }
 async function jokerAssignments(cards,existing=[]){
@@ -207,14 +211,22 @@ async function jokerAssignments(cards,existing=[]){
 
 function renderGame(){
  const game=room?.game;
- if(!game){$("#game").innerHTML="<div class='notice'>Waiting for the host to start…</div>";return}
+ if(!game){$("#game").innerHTML="<div class='notice'>Waiting for the host to start…</div>";localizeControls();return}
  game.kind==="rummy"?renderRummy(game):renderBackgammon(game);
+ localizeControls();
 }
 
 const signedPoints=value=>Number(value)>0?`+${Number(value)}`:String(Number(value));
 function resultTable(game){
  const rows=game.players.map(id=>{const score=game.scores.players[id];return `<tr><td>${playerName(id)}${id===game.winner?" 🏆":""}</td><td>${score.cards}</td><td>${score.raw}</td><td>${signedPoints(score.match)}</td><td>${score.fullHand?"Full hand":""}</td></tr>`}).join("");
  return `<section class="results"><h2>${playerName(game.winner)} wins!</h2><table><thead><tr><th>Player</th><th>Cards</th><th>Raw</th><th>Change</th><th></th></tr></thead><tbody>${rows}</tbody></table><p>Winner receives <strong>${game.scores.awarded}</strong> match points${game.sprint?" (sprint ×2)":""}.</p></section>`;
+}
+function remainingHands(game){
+ if(!game.winner)return "";
+ return `<section class="remaining-hands"><h3>Remaining cards / Останали карти</h3>${game.players.filter(id=>id!==game.winner).map(id=>{
+  const score=game.scores.players[id],cards=game.hands[id];
+  return `<article class="remaining-player"><h4>${playerName(id)}</h4><p>${score.cards} cards · ${score.raw} raw points · ${signedPoints(score.match)} match points${score.fullHand?" · Full hand: 100 points / Неоткрит: 100 точки":""}</p><div class="remaining-cards">${Array.isArray(cards)?cards.map(card=>cardHtml(card,{proof:true})).join(""):""}</div></article>`;
+ }).join("")}</section>`;
 }
 function standings(){
  if(!room.match)return "";
@@ -236,7 +248,7 @@ function renderRummy(game){
  const status=game.winner?`${progress} finished`:`${game.sprint?"⚡ SPRINT ×2 · ":""}${progress} · ${turn?"Your turn":playerName(game.players[game.turn])+"'s turn"}`;
  const discard=game.discard.at(-1);
  $("#game").innerHTML=`<p class="game-status">${status}</p>${game.forfeited?.length?`<p class="notice">Left by forfeit: ${game.forfeited.map(playerName).join(", ")}. This is the last hand of this match.</p>`:""}
- ${game.winner?resultTable(game)+standings():""}
+ ${game.winner?resultTable(game)+standings()+remainingHands(game):""}
  ${!game.winner?`<div class="draw-area"><button id="stock" ${!active||game.phase!=="draw"?"disabled":""}>Draw stock <b>${Number(game.stock.count)}</b></button><div class="discard-pile"><span>Discard</span>${discard?cardHtml(discard):"<em>Empty</em>"}<button id="discardDraw" ${!active||game.phase!=="draw"||!discard?"disabled":""}>Take card</button></div></div>`:""}
  <div class="actions"><h3>Your hand</h3>${!game.winner?'<button id="arrangeHand" class="ghost" aria-pressed="'+arranging+'">'+(arranging?"Done arranging":"Arrange cards")+'</button>':""}</div>
  ${arranging&&!game.winner?'<p class="board-hint">Tap a card, then tap its destination. Tap Done arranging to select cards for play.</p>':""}
@@ -309,6 +321,16 @@ function renderBackgammon(game){
  $("#roll")?.addEventListener("click",()=>act({type:"roll"}));
  $("#bgUndo")?.addEventListener("click",()=>act({type:"undo"}));
 }
+
+$("#uiLanguage").value=uiLanguage;
+$("#uiLanguage").onchange=()=>{
+ uiLanguage=$("#uiLanguage").value==="bg"?"bg":"en";
+ localStorage.uiLanguage=uiLanguage;
+ localizeControls();
+ document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
+};
+localizeControls();
+document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 
 $("#rulesOpen").onclick=()=>$("#rules").showModal();
 document.querySelectorAll("[data-rules-lang]").forEach(button=>button.onclick=()=>{

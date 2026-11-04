@@ -24,7 +24,7 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   t.after(() => child.kill());
   await once(child.stdout, 'data');
   // Old unversioned URLs and new versioned URLs must both revalidate.
-  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/app.js?v=1.0.7', '/styles.css?v=1.0.7', '/version']) {
+  for (const path of ['/', '/index.html', '/app.js', '/styles.css', '/i18n.js', '/app.js?v=1.0.8', '/styles.css?v=1.0.8', '/version']) {
     const response = await fetch('http://127.0.0.1:18089' + path);
     assert.equal(response.status, 200);
     const policy = response.headers.get('cache-control');

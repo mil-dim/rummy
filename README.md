@@ -61,3 +61,17 @@ Each player sees their own starting point as 24, with checker-color badges.
 Concede 1 point or concede Mars asks for confirmation and then the opponent's
 acceptance. It ends only the current game. Permanent Leave game remains separate
 and ends the match. Protocol 6 requires current browser assets after deployment.
+
+
+## Watching games
+
+Use **Watch** in the lobby to observe Rummy or any Backgammon variant, even when
+all player seats are occupied. The lobby lists player and watcher names, online
+status and game status. Watchers cannot play, start games or respond to concessions.
+Rummy hands remain hidden during play; only counts, discard and table melds are
+shown. Finished hands reveal remaining cards for score verification.
+
+Back to lobby and Resume watching preserve your watcher place. Stop watching
+returns to the lobby without affecting the match. A session has one room membership;
+leave your current seat or stop watching before joining another table. Refresh and
+short disconnects resume watching. Watchers do not keep abandoned rooms alive.

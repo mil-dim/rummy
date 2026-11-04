@@ -35,7 +35,9 @@ const EVENT_WINDOW_MS = 10_000;
 const MAX_EVENTS_PER_WINDOW = 80;
 const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
-const PROTOCOL_VERSION = 6;
+const MAX_WATCHERS = 50;
+const WATCHER_IDLE_MS = 10 * 60 * 1000;
+const PROTOCOL_VERSION = 7;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -144,7 +146,11 @@ function lobby() {
     gameType: room.gameType,
     players: room.players.length,
     maxPlayers: room.maxPlayers,
-    started: Boolean(room.game)
+    started: Boolean(room.game),
+    status: !room.game ? "waiting" : room.game.winner ? "finished" : "playing",
+    variant: room.game?.variant || null,
+    playerList: room.players.map(playerView),
+    watchers: (room.watchers || []).map(playerView)
   }));
 }
 
@@ -160,15 +166,33 @@ function findPlayerRoom(playerId) {
   return [...rooms.values()].find(room => room.players.some(player => player.id === playerId));
 }
 
+function findWatchedRoom(playerId) {
+  return [...rooms.values()].find(room => (room.watchers || []).some(player => player.id === playerId));
+}
+function findMembership(playerId) { return findPlayerRoom(playerId) || findWatchedRoom(playerId); }
+function notifyRoomLeft(playerId, roomId) {
+  for (const client of io.sockets.sockets.values()) {
+    if (client.data.player?.id === playerId) {
+      client.leave(roomId); client.emit("roomLeft", { id: roomId });
+    }
+  }
+}
+function deleteRoom(room) {
+  for (const member of [...room.players,...(room.watchers || [])]) notifyRoomLeft(member.id,room.id);
+  rooms.delete(room.id);
+}
+
 function touchRoom(room) {
   room.lastActive = Date.now();
 }
 
-function emitRoom(room) {
-  touchRoom(room);
-  for (const player of room.players) {
-    const state = room.game?.kind === "rummy" ? publicRummy(room.game, player.id)
-      : room.game?.kind === "backgammon" ? publicBackgammon(room.game, player.id) : room.game;
+function emitRoom(room, touch = true) {
+  if (touch) touchRoom(room);
+  for (const player of [...room.players,...(room.watchers || [])]) {
+    const role = room.players.some(member => member.id === player.id) ? "player" : "watcher";
+    const viewer = role === "player" ? player.id : null;
+    const state = room.game?.kind === "rummy" ? publicRummy(room.game, viewer)
+      : room.game?.kind === "backgammon" ? publicBackgammon(room.game, viewer) : room.game;
     if (player.socketId) {
       io.to(player.socketId).emit("room", {
         protocolVersion: PROTOCOL_VERSION,
@@ -176,6 +200,8 @@ function emitRoom(room) {
         name: room.name,
         gameType: room.gameType,
         hostId: room.hostId,
+        role,
+        watchers: (room.watchers || []).map(playerView),
         players: room.players.map(playerView),
         formerPlayers: room.formerPlayers || [],
         match: room.match,
@@ -284,11 +310,11 @@ io.on("connection", socket => {
       socket.data.player = player;
       socket.data.token = token;
 
-      reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findPlayerRoom(player.id)) });
+      reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findMembership(player.id)) });
       for (const room of rooms.values()) {
-        if (room.players.some(candidate => candidate.id === player.id)) {
+        if (room.players.some(candidate => candidate.id === player.id) || (room.watchers || []).some(candidate => candidate.id === player.id)) {
           socket.join(room.id);
-          emitRoom(room);
+          emitRoom(room, Boolean(findPlayerRoom(player.id)));
         }
       }
     } catch (error) {
@@ -303,7 +329,7 @@ io.on("connection", socket => {
       }
       const player = socket.data.player;
       if (!player) throw Error("Choose your name first.");
-      if (findPlayerRoom(player.id)) throw Error("Leave your current room first.");
+      if (findMembership(player.id)) throw Error("Leave your current room first.");
       if (rooms.size >= MAX_ROOMS) throw Error("The room limit has been reached.");
 
       const gameType = payload.gameType === "backgammon" ? "backgammon" : "rummy";
@@ -316,6 +342,7 @@ io.on("connection", socket => {
           ? 2
           : Math.max(2, Math.min(6, Number(payload.maxPlayers) || 4)),
         players: [player],
+        watchers: [],
         hostId: player.id,
         game: null,
         gameNumber: 0,
@@ -341,6 +368,7 @@ io.on("connection", socket => {
       const room = rooms.get(id);
       if (!player || !room) throw Error("Room not found.");
 
+      if (findWatchedRoom(player.id)) throw Error("Stop watching before joining a table.");
       const currentRoom = findPlayerRoom(player.id);
       if (currentRoom && currentRoom.id !== room.id) throw Error("Leave your current room first.");
       if (!room.players.some(candidate => candidate.id === player.id)) {
@@ -355,10 +383,36 @@ io.on("connection", socket => {
     }
   });
 
+  socket.on("watchRoom", (payload, ack) => {
+    try {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw Error("Invalid room request.");
+      const player = socket.data.player;
+      if (!player) throw Error("Choose your name first.");
+      const id = typeof payload.id === "string" ? payload.id.trim().toUpperCase().slice(0,12) : "";
+      const room = rooms.get(id);
+      if (!room) throw Error("Room not found.");
+      if (findPlayerRoom(player.id)) throw Error("Leave your current room before watching.");
+      const current = findWatchedRoom(player.id);
+      if (current && current.id !== room.id) throw Error("Stop watching your current room first.");
+      room.watchers ||= [];
+      if (!current) {
+        if (room.watchers.length >= MAX_WATCHERS) throw Error("The watcher limit has been reached.");
+        room.watchers.push(player);
+      }
+      socket.join(room.id); emitRoom(room, false); reply(ack,{ok:true});
+    } catch (error) { reply(ack,{ok:false,error:error.message}); }
+  });
+
   socket.on("leaveRoom", (_payload, ack) => {
     try {
       const player = socket.data.player;
       if (!player) throw Error("Choose your name first.");
+      const watched = findWatchedRoom(player.id);
+      if (watched) {
+        watched.watchers = watched.watchers.filter(member => member.id !== player.id);
+        notifyRoomLeft(player.id,watched.id); emitRoom(watched,false);
+        reply(ack,{ok:true}); return;
+      }
       const room = findPlayerRoom(player.id);
       if (!room) { reply(ack, { ok: true }); return; }
       if (room.game && !room.game.winner) {
@@ -372,14 +426,9 @@ io.on("connection", socket => {
       }
       room.formerPlayers = [...(room.formerPlayers || []), { id: player.id, name: player.name }];
       room.players = room.players.filter(candidate => candidate.id !== player.id);
-      // Leave every tab belonging to this session, not just this socket.
-      for (const client of io.sockets.sockets.values()) {
-        if (client.data.player?.id === player.id) {
-          client.leave(room.id);
-          client.emit("roomLeft", { id: room.id });
-        }
-      }
-      if (!room.players.length) { rooms.delete(room.id); emitLobby(); }
+      // Clear every tab for this session, including old tabs after reconnect.
+      notifyRoomLeft(player.id,room.id);
+      if (!room.players.length) { deleteRoom(room); emitLobby(); }
       else {
         if (room.hostId === player.id) room.hostId = room.players[0].id;
         emitRoom(room);
@@ -446,6 +495,7 @@ io.on("connection", socket => {
     player.lastSeen = Date.now();
     for (const room of rooms.values()) {
       if (room.players.some(candidate => candidate.id === player.id)) emitRoom(room);
+      else if ((room.watchers || []).some(candidate => candidate.id === player.id)) emitRoom(room,false);
     }
   });
 });
@@ -455,14 +505,16 @@ const cleanupTimer = setInterval(() => {
   let lobbyChanged = false;
 
   for (const [id, room] of rooms) {
+    const kept = (room.watchers || []).filter(player => player.socketId || now - player.lastSeen <= WATCHER_IDLE_MS);
+    if (kept.length !== (room.watchers || []).length) { room.watchers = kept; emitRoom(room,false); }
     if (now - room.lastActive > ROOM_IDLE_MS && room.players.every(player => !player.socketId)) {
-      rooms.delete(id);
+      deleteRoom(room);
       lobbyChanged = true;
     }
   }
 
   for (const [token, player] of sessions) {
-    if (!player.socketId && now - player.lastSeen > SESSION_IDLE_MS && !findPlayerRoom(player.id)) {
+    if (!player.socketId && now - player.lastSeen > SESSION_IDLE_MS && !findMembership(player.id)) {
       sessions.delete(token);
     }
   }

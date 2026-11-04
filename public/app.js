@@ -38,9 +38,22 @@ function identified(response){
 $("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{token:localStorage.token,name:$("#name").value},identified)};
 
 let lobbyRooms=[];
-function renderLobby(){const rooms=lobbyRooms;$("#rooms").innerHTML=rooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button></article>`).join("")||"<p>No open rooms yet.</p>";$("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room);localizeControls()}
+function memberList(members){return members?.length?members.map(member=>`<span class="member-name">${member.connected?"●":"○"} <span data-no-translate>${esc(member.name)}</span></span>`).join(" "):"<span>None</span>"}
+function renderLobby(){
+ $("#rooms").innerHTML=lobbyRooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}${item.variant?` · <span>${variantName(item.variant)}</span>`:""}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><p class="room-status"><span>${item.status==="finished"?"Finished":item.started?"In progress":"Waiting for players"}</span></p><p class="room-members"><strong>Players</strong>: ${memberList(item.playerList)}</p><p class="room-watchers"><strong>Watchers</strong>: ${memberList(item.watchers)}</p><div class="actions"><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button><button data-watch="${esc(item.id)}" class="ghost" ${room?"disabled":""}>Watch</button></div></article>`).join("")||"<p>No open rooms yet.</p>";
+ $("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room);
+ const watching=room?.role==="watcher";
+ $("#resumeGame").textContent=watching?"Resume watching":"Resume game";
+ $("#leaveLobby").textContent=watching?"Stop watching":"Leave game";
+ $("#resumeHint").textContent=watching?"You are watching a table. Stop watching before joining another.":"Your seat is reserved. Leave before joining another table.";
+ localizeControls();
+}
 socket.on("lobby",rooms=>{lobbyRooms=rooms;renderLobby()});
 document.addEventListener("click",event=>{const id=event.target.dataset.join;if(id&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("joinRoom",{id},response=>!response.ok&&toast(response.error))}});
+document.addEventListener("click",event=>{
+ const button=event.target.closest?.("[data-watch]");
+ if(button&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("watchRoom",{id:button.dataset.watch},response=>{if(!response.ok){setLobbyView(true);toast(response.error)}})}
+});
 $("#newRoom").onclick=()=>$("#create").showModal();
 $("#gameType").onchange=()=>{$("#maxPlayers").disabled=$("#gameType").value==="backgammon"};
 $("#createGo").onclick=event=>{event.preventDefault();socket.emit("createRoom",{name:$("#createName").value,gameType:$("#gameType").value,maxPlayers:$("#maxPlayers").value},response=>{if(response.ok){$("#create").close();setLobbyView(false)}else toast(response.error)})};
@@ -53,6 +66,7 @@ $("#backLobby").onclick=()=>setLobbyView(true);
 $("#resumeGame").onclick=()=>{if(room){setLobbyView(false);renderGame()}};
 function leaveGame(){
  if(!room)return;
+ if(room.role==="watcher"){socket.emit("leaveRoom",{},response=>{if(!response?.ok)toast(response?.error)});return}
  const message=room.game&&!room.game.winner
    ?"Leave permanently and forfeit this game? In Rummy, the remaining players finish this hand, then start a new match."
    :"Leave this table permanently?";
@@ -66,7 +80,7 @@ socket.on("roomLeft",()=>{
 
 function updateStartButton(){
  const button=$("#start");
- if(room.hostId!==me.id||room.game&&!room.game.winner){button.hidden=true;return}
+ if(room.role==="watcher"||room.hostId!==me.id||room.game&&!room.game.winner){button.hidden=true;return}
  button.hidden=false;
  if(!room.game)button.textContent="Start match";
  else if(room.match?.finished)button.textContent="New match";
@@ -86,7 +100,7 @@ $("#bgMatchGo").onclick=event=>{
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>6){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>7){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -96,6 +110,9 @@ function showRoom(next){
  $("#roomCode").textContent=`ROOM ${room.id} · ${room.gameType}`;
  $("#roomName").textContent=room.name;
  $("#players").innerHTML=room.players.map((item,index)=>`<span>${room.gameType==="backgammon"?`<i class="player-checker side-${room.game?room.game.players.indexOf(item.id):index}" aria-hidden="true"></i><span>${(room.game?room.game.players.indexOf(item.id):index)===0?"White":"Red"}</span> `:""}${item.connected?"●":"○"} <span data-no-translate>${esc(item.name)}</span></span>`).join("");
+ $("#watchers").innerHTML=`<strong>Watchers</strong>: ${memberList(room.watchers)}`;
+ $("#watchingNotice").hidden=room.role!=="watcher";
+ $("#leaveGame").textContent=room.role==="watcher"?"Stop watching":"Leave game";
  updateStartButton();renderGame();
 }
 socket.on("room",showRoom);
@@ -241,6 +258,7 @@ function stagedHtml(hand){
 }
 
 function renderRummy(game){
+ const watching=room.role==="watcher";
  const hand=Array.isArray(game.hands[me.id])?orderedHand(game.hands[me.id]):[];
  const handIds=new Set(hand.map(card=>card.id));
  stagedMelds=stagedMelds.filter(meld=>meld.cardIds.every(id=>handIds.has(id)));
@@ -250,12 +268,13 @@ function renderRummy(game){
  const discard=game.discard.at(-1);
  $("#game").innerHTML=`<p class="game-status">${status}</p>${game.forfeited?.length?`<p class="notice">Left by forfeit: ${game.forfeited.map(playerName).join(", ")}. This is the last hand of this match.</p>`:""}
  ${game.winner?resultTable(game)+standings()+remainingHands(game):""}
- ${!game.winner?`<div class="draw-area"><button id="stock" ${!active||game.phase!=="draw"?"disabled":""}>Draw stock <b>${Number(game.stock.count)}</b></button><div class="discard-pile"><span>Discard</span>${discard?cardHtml(discard):"<em>Empty</em>"}<button id="discardDraw" ${!active||game.phase!=="draw"||!discard?"disabled":""}>Take card</button></div></div>`:""}
- <div class="actions"><h3>Your hand</h3>${!game.winner?'<button id="arrangeHand" class="ghost" aria-pressed="'+arranging+'">'+(arranging?"Done arranging":"Arrange cards")+'</button>':""}</div>
+ ${!game.winner&&watching?`<div class="draw-area"><p><span>Stock cards</span>: ${Number(game.stock.count)}</p><div class="discard-pile"><span>Discard</span>${discard?cardHtml(discard,{proof:true}):"<em>Empty</em>"}</div></div>`:""}
+ ${!game.winner&&!watching?`<div class="draw-area"><button id="stock" ${!active||game.phase!=="draw"?"disabled":""}>Draw stock <b>${Number(game.stock.count)}</b></button><div class="discard-pile"><span>Discard</span>${discard?cardHtml(discard):"<em>Empty</em>"}<button id="discardDraw" ${!active||game.phase!=="draw"||!discard?"disabled":""}>Take card</button></div></div>`:""}
+ ${watching?`<section class="hand-counts"><h3>Cards remaining</h3>${game.players.map(id=>`<p>${playerName(id)}: ${Array.isArray(game.hands[id])?game.hands[id].length:Number(game.hands[id]?.count||0)}</p>`).join("")}</section>`:`<div class="actions"><h3>Your hand</h3>${!game.winner?'<button id="arrangeHand" class="ghost" aria-pressed="'+arranging+'">'+(arranging?"Done arranging":"Arrange cards")+'</button>':""}</div>
  ${arranging&&!game.winner?'<p class="board-hint">Tap a card, then tap its destination. Tap Done arranging to select cards for play.</p>':""}
- <div class="hand">${hand.map(item=>cardHtml(item,{hand:!game.winner})).join("")}</div>
- ${!game.winner?`<div class="actions"><button id="undoTurn" ${!active||!game.canUndo?"disabled":""}>Undo last action</button><button id="stage" ${!active||game.phase!=="play"?"disabled":""}>Stage selected meld</button><button id="discardBtn" ${!active||game.phase!=="play"?"disabled":""}>Discard selected</button></div>${stagedHtml(hand)}`:""}
- <h3>Table melds</h3><div class="table-melds">${game.melds.map(meld=>`<div class="meld ${meld.cards.length>6?"meld-wide":""}"><div class="meld-cards">${meld.cards.map(item=>cardHtml(item)).join("")}</div>${!game.winner?`<button data-add="${esc(meld.id)}" ${!active||game.phase!=="play"?"disabled":""}>Add selected</button>${meld.cards.filter(item=>item.rank==="JOKER").map(item=>`<button data-replace="${esc(meld.id)}" data-joker="${esc(item.id)}" ${!active||game.phase!=="play"?"disabled":""}>Replace ${esc(declared(item))}</button>`).join("")}`:""}</div>`).join("")}</div>`;
+ <div class="hand">${hand.map(item=>cardHtml(item,{hand:!game.winner})).join("")}</div>`}
+ ${!game.winner&&!watching?`<div class="actions"><button id="undoTurn" ${!active||!game.canUndo?"disabled":""}>Undo last action</button><button id="stage" ${!active||game.phase!=="play"?"disabled":""}>Stage selected meld</button><button id="discardBtn" ${!active||game.phase!=="play"?"disabled":""}>Discard selected</button></div>${stagedHtml(hand)}`:""}
+ <h3>Table melds</h3><div class="table-melds">${game.melds.map(meld=>`<div class="meld ${meld.cards.length>6?"meld-wide":""}"><div class="meld-cards">${meld.cards.map(item=>cardHtml(item,{proof:watching})).join("")}</div>${!game.winner&&!watching?`<button data-add="${esc(meld.id)}" ${!active||game.phase!=="play"?"disabled":""}>Add selected</button>${meld.cards.filter(item=>item.rank==="JOKER").map(item=>`<button data-replace="${esc(meld.id)}" data-joker="${esc(item.id)}" ${!active||game.phase!=="play"?"disabled":""}>Replace ${esc(declared(item))}</button>`).join("")}`:""}</div>`).join("")}</div>`;
 
  $("#arrangeHand")?.addEventListener("click",()=>{arranging=!arranging;arrangeFrom=null;selected.clear();renderGame()});
  $("#undoTurn")?.addEventListener("click",()=>act({type:"undo"},()=>{stagedMelds=[];selected.clear();renderGame()}));
@@ -287,6 +306,7 @@ const checkerStack=point=>point.count?`<span class="checker-stack">${point.pinne
 const bgPoint=(game,index,edge,view)=>`<button class="bg-point ${edge}" data-point="${index}" aria-label="Point ${view.label(index)}, ${Number(game.points[index].count)} checkers${game.points[index].pinned!==undefined?", pinned checker":""}"><span class="triangle"></span><small>${view.label(index)}</small>${checkerStack(game.points[index])}</button>`;
 const dieHtml=(die,{index=null,disabled=true,used=false}={})=>`<button class="die face-${Number(die)} ${used?"die-used":""}" ${index===null?"":`data-die="${index}"`} ${disabled?"disabled":""} aria-label="Die ${Number(die)}${used?", used":""}">${Array.from({length:Number(die)},()=>"<i></i>").join("")}</button>`;
 function renderBackgammon(game){
+ const watching=room.role==="watcher";
  const turn=game.players[game.turn]===me.id,active=turn&&!game.winner&&!game.resignationOffer;
  const mySide=game.players.indexOf(me.id),view=boardView(game.variant,mySide);
  const {top,bottom}=view;
@@ -303,15 +323,16 @@ function renderBackgammon(game){
  const offer=game.resignationOffer;
  $("#game").innerHTML=`<p class="bg-progress">${progress}</p><div class="bg-colors">${game.players.map((id,side)=>`<span class="color-seat ${side===game.turn?"current-seat":""}"><i class="player-checker side-${side}" aria-hidden="true"></i>${playerName(id)} · <span>${side===0?"White":"Red"}</span>${side===mySide?" · <b>You</b>":""}</span>`).join("")}</div><div class="bg-status"><strong>${status}</strong>
  <div class="dice">${game.dice.map((die,index)=>dieHtml(die,{index,disabled:!active||!legal.some(move=>move.dieIndex===index),used:game.used.includes(index)})).join("")}</div>
- ${!game.winner?`<div class="actions"><button id="bgUndo" ${game.canUndo?"":"disabled"}>Undo last move</button><button id="roll" ${opening?game.openingRolls[mySide]===null?"":"disabled":active&&game.phase==="roll"?"":"disabled"}>${opening?"Roll to start":"Roll"}</button></div>`:""}</div>
+ ${!game.winner&&!watching?`<div class="actions"><button id="bgUndo" ${game.canUndo?"":"disabled"}>Undo last move</button><button id="roll" ${opening?game.openingRolls[mySide]===null?"":"disabled":active&&game.phase==="roll"?"":"disabled"}>${opening?"Roll to start":"Roll"}</button></div>`:""}</div>
  ${game.gameNumber===1&&(opening||(!game.dice.length&&!game.lastTurn))?openingHtml:""}
  ${game.lastTurn?`<section class="last-roll"><p>${playerName(game.lastTurn.playerId)}: ${game.lastTurn.reason==="blocked"?"No legal moves remaining — turn passed":"Turn completed"}</p><div class="dice">${game.lastTurn.dice.map((die,index)=>dieHtml(die,{used:game.lastTurn.used.includes(index)})).join("")}</div></section>`:""}
  ${game.winner?`<section class="results"><h3>${game.scores?.resigned?"Win by concession":game.scores?.forfeit?"Win by forfeit":game.scores?.mars?"Mars — opponent bore off no checkers":"Win"}</h3><p>${playerName(game.winner)} receives ${Number(game.scores?.awarded||0)} point(s).</p></section>${standings()}`:""}
- ${!game.winner?`<div class="concession actions">${offer?`<p>${playerName(game.players[offer.side])} <span>offers to concede</span> ${offer.points} <span>point(s).</span></p>${offer.side===mySide?'<button id="cancelResign" class="ghost">Cancel offer</button>':'<button id="acceptResign">Accept concession</button><button id="declineResign" class="ghost">Decline</button>'}`:'<button data-concede="1" class="ghost">Concede 1 point</button><button data-concede="2" class="ghost">Concede Mars — 2 points</button>'}</div>`:""}
+ ${!game.winner&&!watching?`<div class="concession actions">${offer?`<p>${playerName(game.players[offer.side])} <span>offers to concede</span> ${offer.points} <span>point(s).</span></p>${offer.side===mySide?'<button id="cancelResign" class="ghost">Cancel offer</button>':'<button id="acceptResign">Accept concession</button><button id="declineResign" class="ghost">Decline</button>'}`:'<button data-concede="1" class="ghost">Concede 1 point</button><button data-concede="2" class="ghost">Concede Mars — 2 points</button>'}</div>`:""}
+ ${watching&&offer?`<p class="notice">${playerName(game.players[offer.side])} <span>offers to concede</span> ${offer.points} <span>point(s).</span></p>`:""}
  ${game.sequence&&!game.winner?`<p class="notice sequence-status"><span>${game.sequence.handedOver?"Inherited doubles":"Ascending doubles"}</span>: ${game.sequence.face} → 6 · <span>Original roller</span>: ${playerName(game.players[game.sequence.roller])}</p>`:""}
  ${historyHtml}
  <div class="backgammon-layout"><div class="backgammon-wrap"><div class="backgammon-board"><div class="bg-row top">${row(top,"top")}</div><div class="bg-row bottom">${row(bottom,"bottom")}</div><div class="center-bar" aria-label="Bar — hit checkers">${game.variant==="normal"||!game.variant?barSide(1-Math.max(0,mySide))+barSide(Math.max(0,mySide)):""}</div></div></div><aside class="off-tray" aria-label="Borne-off checkers"><strong>Off board</strong>${offSide(1-Math.max(0,mySide))}${offSide(Math.max(0,mySide))}</aside></div>
- <p class="board-hint">${game.variant==="gulbara"?"Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first three rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.":game.variant==="tapa"?"Tapa: landing on a lone opposing checker pins it until released. Pinning the last checker on its starting point wins Mars immediately.":"Normal backgammon: hit checkers must re-enter from the center bar first."} <span>Your starting point is 24; bear off beyond point 1. Choose a die, then a highlighted point.</span></p>`;
+ <p class="board-hint">${game.variant==="gulbara"?"Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first three rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.":game.variant==="tapa"?"Tapa: landing on a lone opposing checker pins it until released. Pinning the last checker on its starting point wins Mars immediately.":"Normal backgammon: hit checkers must re-enter from the center bar first."} <span>${watching?"Watching from White’s side. Moves are read-only.":"Your starting point is 24; bear off beyond point 1. Choose a die, then a highlighted point."}</span></p>`;
  document.querySelectorAll('[data-concede]').forEach(button=>button.onclick=()=>{const points=Number(button.dataset.concede);if(confirm(translateText(points===1?"Offer to concede this game for 1 point?":"Offer to concede this game for 2 points (Mars)?",uiLanguage)))act({type:"offerResignation",points})});
  $("#acceptResign")?.addEventListener("click",()=>act({type:"acceptResignation"}));
  $("#declineResign")?.addEventListener("click",()=>act({type:"declineResignation"}));

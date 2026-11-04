@@ -30,6 +30,7 @@ const bg = {
   'Concede 1 point':'Предай се за 1 точка',
   'Concede Mars — 2 points':'Предай се с марс — 2 точки',
   'Accept concession':'Приеми предаването', 'Decline':'Откажи', 'Cancel offer':'Отмени предложението',
+  'Watch':'Гледай', 'Resume watching':'Продължи наблюдението', 'Stop watching':'Спри наблюдението',
   'Roll': 'Хвърли заровете',
   'Roll to start': 'Хвърли за начало'
 };
@@ -66,6 +67,14 @@ export function translateButtons(root, language) {
 // Only application text is translated. Names, card faces and rule articles are
 // explicitly excluded by translateInterface; no game DOM is rebuilt.
 const labels = {
+ 'Watchers':'Наблюдатели', 'None':'Няма', 'Finished':'Приключила', 'Waiting for players':'Изчакват се играчи',
+ 'Stock cards':'Карти в тестето', 'Cards remaining':'Останали карти',
+ 'Watching — you are not seated and cannot make moves.':'Наблюдавате — нямате място като играч и не можете да правите ходове.',
+ 'Watching from White’s side. Moves are read-only.':'Наблюдавате от страната на белите. Не можете да правите ходове.',
+ 'You are watching a table. Stop watching before joining another.':'Наблюдавате маса. Спрете наблюдението, преди да се присъедините към друга.',
+ 'Stop watching before joining a table.':'Спрете наблюдението, преди да се присъедините като играч.',
+ 'Leave your current room before watching.':'Напуснете текущата си стая, преди да наблюдавате друга.',
+
  'Win by concession':'Победа след предаване',
  'Normal backgammon':'Обикновена табла', 'Gulbara':'Гюлбара', 'Tapa':'Тапа', 'You':'Вие',
  'Number of rounds':'Брой кръгове', 'One round: normal backgammon → Gulbara → Tapa.':'Един кръг: обикновена табла → Гюлбара → Тапа.',

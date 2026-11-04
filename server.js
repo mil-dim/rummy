@@ -21,6 +21,10 @@ const buildInfo = {
   build: buildHash.digest("hex").slice(0, 12)
 };
 
+const indexHtml = readFileSync(new URL("public/index.html", sourceRoot), "utf8")
+  .replaceAll("__APP_BUILD__", buildInfo.build)
+  .replaceAll("__APP_VERSION__", buildInfo.version);
+
 const PORT = Number(process.env.PORT) || 8080;
 const MAX_ROOMS = 100;
 const MAX_SESSIONS = 1000;
@@ -109,10 +113,16 @@ app.use((_req, res, next) => {
   }
   next();
 });
+app.get(["/", "/index.html"], (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").send(indexHtml);
+});
+
 // Revalidate assets on every load, including unversioned URLs used by older
 // clients. HTML must always be fetched so it can point to the current assets.
 app.use(express.static("public", {
   dotfiles: "deny",
+  index: false,
   etag: true,
   maxAge: 0,
   setHeaders: (res, path) => {
@@ -241,6 +251,7 @@ io.on("connection", socket => {
     next();
   });
 
+  socket.emit("serverVersion", buildInfo);
   socket.emit("lobby", lobby());
 
   socket.on("identify", (payload, ack) => {
@@ -250,6 +261,7 @@ io.on("connection", socket => {
       }
       let token = typeof payload.token === "string" ? payload.token.slice(0, 100) : "";
       let player = token ? sessions.get(token) : null;
+      const sessionReplaced = Boolean(token && !player);
       if (socket.data.player && player !== socket.data.player)
         throw Error("Already identified. Reconnect to change identity.");
 
@@ -272,7 +284,7 @@ io.on("connection", socket => {
       socket.data.player = player;
       socket.data.token = token;
 
-      reply(ack, { ok: true, token, player: playerView(player), resumed: Boolean(findPlayerRoom(player.id)) });
+      reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findPlayerRoom(player.id)) });
       for (const room of rooms.values()) {
         if (room.players.some(candidate => candidate.id === player.id)) {
           socket.join(room.id);

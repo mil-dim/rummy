@@ -34,3 +34,17 @@ Rooms and active games are held in server memory. Browser identity survives
 reconnects while the server is running. A later production hardening step
 should persist room/game snapshots and add account authentication if the
 internet endpoint will be public.
+
+
+### Browser regression check
+
+After npm ci, install the test browser once with `npx playwright install chromium`.
+Run `npm run test:browser` to check roll history, reconnect after a server restart,
+build-update detection, and reload without losing player/order storage. This
+starts an isolated local server on port 18091. GitHub CI runs this check too.
+
+The browser checks /version against its loaded build on reconnect, tab focus,
+and every 60 seconds while visible. An update notice offers a reload; active games
+are not forcibly reloaded. Old pages from before this mechanism may need one final
+reload to load it. This does not deploy changes: update the checkout, deployment
+copy and Docker image separately.

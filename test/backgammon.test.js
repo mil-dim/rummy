@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { backgammonAction, newBackgammon, publicBackgammon, legalBackgammonMoves, forfeitBackgammon } from '../lib/backgammon.js';
 import { startBackgammonMatch, recordBackgammonResult } from '../lib/backgammon-match.js';
+import { diceRandom } from '../lib/dice.js';
 const players=[{id:'p1'},{id:'p2'}];
 function position(dice=[1,2]) {
   const g=newBackgammon(players,{starter:'p1'});
@@ -10,7 +11,7 @@ function position(dice=[1,2]) {
 }
 const put=(g,index,side,count=1)=>{g.points[index]={owner:side,count}};
 const move=(g,from,dieIndex=0,id='p1')=>backgammonAction(g,id,{type:'move',from,dieIndex});
-function rolling(t,values) { let i=0;t.mock.method(Math,'random',()=>((values[i++]-1)+0.1)/6); }
+function rolling(t,values) { let i=0;t.mock.method(diceRandom,'roll',()=>{assert.ok(i<values.length,'Unexpected extra dice generation');return values[i++]}); }
 
 test('opening both roll one die, ties reroll and winner rolls fresh dice',t=>{
   const g=newBackgammon(players);rolling(t,[4,4,2,6,3,5]);
@@ -133,7 +134,7 @@ test('match scores accumulate normal wins and Mars once, and finish at chosen co
 test('complete seeded game preserves all 15 checkers per side',t=>{
   let seed=73421;
   const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
-  t.mock.method(Math,'random',random);
+  t.mock.method(diceRandom,'roll',()=>1+Math.floor(random()*6));
   const g=newBackgammon(players,{starter:'p1'});
   let actions=0;
   while(!g.winner&&actions++<5000){
@@ -147,4 +148,30 @@ test('complete seeded game preserves all 15 checkers per side',t=>{
     for(const side of [0,1])assert.equal(g.bar[side]+g.borneOff[side]+g.points.reduce((n,p)=>n+(p.owner===side?p.count:0),0),15);
   }
   assert.ok(g.winner,'game must finish');assert.ok([1,2].includes(g.scores.awarded));
+});
+
+
+test('legitimate repeated rolls have distinct IDs and doubles generate only two values', t => {
+  const g=newBackgammon(players);rolling(t,[3,3,3,3,3,3]);
+  for(let i=0;i<3;i++){backgammonAction(g,'p1',{type:'roll'});backgammonAction(g,'p2',{type:'roll'})}
+  assert.equal(g.openingRound,4);assert.equal(g.rollNumber,6);
+  assert.deepEqual(g.rollHistory.map(r=>r.id),[1,2,3,4,5,6]);
+  assert.ok(g.rollHistory.every(r=>r.dice[0]===3&&r.kind==='opening'));
+  const h=position([]);h.phase='roll';put(h,23,0,2);
+  rolling(t,[6,6]);backgammonAction(h,'p1',{type:'roll'});
+  assert.deepEqual(h.dice,[6,6,6,6]);assert.deepEqual(h.rollHistory[0].dice,[6,6]);
+  const before=structuredClone(h.rollHistory);
+  assert.throws(()=>backgammonAction(h,'p1',{type:'roll'}),/Move your current dice/);
+  assert.deepEqual(h.rollHistory,before);
+  const m=legalBackgammonMoves(h)[0];backgammonAction(h,'p1',{type:'move',...m});
+  backgammonAction(h,'p1',{type:'undo'});assert.deepEqual(h.rollHistory,before);
+});
+
+test('roll history is bounded and random source failure does not consume a turn',t=>{
+  const g=newBackgammon(players,{starter:'p1'});
+  t.mock.method(diceRandom,'roll',()=>{throw Error('Entropy unavailable')});
+  const before=structuredClone(g);assert.throws(()=>backgammonAction(g,'p1',{type:'roll'}),/Entropy/);assert.deepEqual(g,before);
+  t.mock.restoreAll();t.mock.method(diceRandom,'roll',()=>2);
+  for(let i=0;i<60;i++){g.phase='roll';g.dice=[];g.used=[];backgammonAction(g,'p1',{type:'roll'})}
+  assert.equal(g.rollHistory.length,50);assert.equal(g.rollHistory[0].id,11);assert.equal(g.rollHistory.at(-1).id,60);
 });

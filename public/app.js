@@ -5,10 +5,32 @@ const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(cand
 const playerName=id=>esc(player(id)?.name||"Player");
 const toast=message=>{const element=$("#toast");element.textContent=String(message||"Something went wrong.");element.style.display="block";setTimeout(()=>element.style.display="none",3000)};
 
-socket.on("connect",()=>{$("#status").textContent="Connected";const token=localStorage.token;if(token)socket.emit("identify",{token,name:localStorage.name},identified)});
+socket.on("connect",()=>{
+ $("#status").textContent="Connected";
+ pendingRoom=null;
+ checkServerVersion();
+ const token=localStorage.token;
+ if(token)socket.emit("identify",{token,name:localStorage.name},identified);
+});
 socket.on("disconnect",()=>$("#status").textContent="Reconnecting…");
-function identified(response){if(!response?.ok){localStorage.removeItem("token");toast(response?.error);return}localStorage.token=response.token;localStorage.name=response.player.name;me=response.player;$("#welcome").hidden=true;$("#lobby").hidden=Boolean(response.resumed)&&!browsingLobby;if(pendingRoom){const next=pendingRoom;pendingRoom=null;showRoom(next)}else if(!response.resumed){room=null;$("#room").hidden=true;renderLobby()}}
-$("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{name:$("#name").value},identified)};
+function clearRoomState(){
+ room=null;pendingRoom=null;selected.clear();stagedMelds=[];arranging=false;arrangeFrom=null;draggedCard=null;
+ $("#game").replaceChildren();
+}
+function identified(response){
+ if(!response?.ok){toast(response?.error);return}
+ const hadRoom=Boolean(room||pendingRoom);
+ localStorage.token=response.token;localStorage.name=response.player.name;me=response.player;
+ $("#welcome").hidden=true;
+ if(!response.resumed){
+   clearRoomState();setLobbyView(true);
+   if(response.sessionReplaced&&hadRoom)toast("Your previous session expired. You are back in the lobby.");
+ }else{
+   $("#lobby").hidden=!browsingLobby;$("#room").hidden=browsingLobby||!room;
+   if(pendingRoom){const next=pendingRoom;pendingRoom=null;showRoom(next)}
+ }
+}
+$("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{token:localStorage.token,name:$("#name").value},identified)};
 
 let lobbyRooms=[];
 function renderLobby(){const rooms=lobbyRooms;$("#rooms").innerHTML=rooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button></article>`).join("")||"<p>No open rooms yet.</p>";$("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room)}
@@ -34,8 +56,7 @@ function leaveGame(){
 $("#leaveGame").onclick=leaveGame;
 $("#leaveLobby").onclick=leaveGame;
 socket.on("roomLeft",()=>{
- room=null;pendingRoom=null;selected.clear();stagedMelds=[];arranging=false;arrangeFrom=null;
- $("#game").replaceChildren();setLobbyView(true);
+ clearRoomState();setLobbyView(true);
 });
 
 function updateStartButton(){
@@ -264,12 +285,15 @@ function renderBackgammon(game){
  const status=game.winner?`${playerName(game.winner)} wins${game.scores?.mars?" — Mars!":"!"}`:opening?"Roll to decide who starts":`${turn?"Your move":playerName(game.players[game.turn])+"'s move"}`;
  const openingHtml=game.openingRolls.some(die=>die!==null)||opening?`<section class="opening-rolls"><p>${opening&&game.openingPrevious?"Opening tie — both players roll again.":opening?"Each player rolls one die. Higher roll starts, then rolls both dice again.":"Opening rolls"}</p>${game.players.map((id,side)=>`<div><span>${playerName(id)}</span>${game.openingRolls[side]!==null?dieHtml(game.openingRolls[side]):"<span>Waiting…</span>"}</div>`).join("")}${opening&&game.openingPrevious?`<small>Previous tie: ${game.openingPrevious.join(" : ")}</small>`:""}</section>`:"";
  const legal=game.legalMoves||[];
+ const history=(game.rollHistory||[]).slice().reverse();
+ const historyHtml=history.length?`<details class="roll-history"><summary>Roll history — last ${history.length} rolls</summary><ol>${history.map(entry=>`<li>#${Number(entry.id)} · ${playerName(entry.playerId)} · ${entry.kind==="opening"?"Opening":"Turn"} · <strong>${entry.dice.map(Number).join(" : ")}</strong></li>`).join("")}</ol></details>`:"";
  $("#game").innerHTML=`<p>${progress}</p><div class="bg-status"><strong>${status}</strong>
  <div class="dice">${game.dice.map((die,index)=>dieHtml(die,{index,disabled:!active||!legal.some(move=>move.dieIndex===index),used:game.used.includes(index)})).join("")}</div>
  ${!game.winner?`<div class="actions"><button id="bgUndo" ${game.canUndo?"":"disabled"}>Undo first move</button><button id="roll" ${opening?game.openingRolls[mySide]===null?"":"disabled":active&&game.phase==="roll"?"":"disabled"}>${opening?"Roll to start":"Roll"}</button></div>`:""}</div>
  ${game.gameNumber===1&&(opening||(!game.dice.length&&!game.lastTurn))?openingHtml:""}
  ${game.lastTurn?`<section class="last-roll"><p>${playerName(game.lastTurn.playerId)}: ${game.lastTurn.reason==="blocked"?"No legal moves remaining — turn passed":"Turn completed"}</p><div class="dice">${game.lastTurn.dice.map((die,index)=>dieHtml(die,{used:game.lastTurn.used.includes(index)})).join("")}</div></section>`:""}
  ${game.winner?`<section class="results"><h3>${game.scores?.forfeit?"Win by forfeit":game.scores?.mars?"Mars — opponent bore off no checkers":"Win"}</h3><p>${playerName(game.winner)} receives ${Number(game.scores?.awarded||0)} point(s).</p></section>${standings()}`:""}
+ ${historyHtml}
  <div class="backgammon-layout"><div class="backgammon-wrap"><div class="backgammon-board"><div class="bg-row top">${row(top,"top")}</div><div class="bg-row bottom">${row(bottom,"bottom")}</div><div class="center-bar" aria-label="Bar — hit checkers">${barSide(0)}${barSide(1)}</div></div></div><aside class="off-tray" aria-label="Borne-off checkers"><strong>Off board</strong>${offSide(0)}${offSide(1)}</aside></div>
  <p class="board-hint">White moves toward point 1; red toward point 24. Choose a die, then a highlighted point. Hit checkers must re-enter from the center bar first. Undo is available only before the second move (or the opponent's next roll).</p>`;
  let die=null;
@@ -292,10 +316,35 @@ document.querySelectorAll("[data-rules-lang]").forEach(button=>button.onclick=()
  document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==language);
 });
 
-fetch("/version",{cache:"no-store"}).then(response=>{
- if(!response.ok)throw Error("Version unavailable");
- return response.json();
-}).then(info=>{
- document.querySelector("#buildInfo").textContent=
-   info.environment+" · v"+info.version+" · build "+info.build;
-}).catch(()=>{document.querySelector("#buildInfo").textContent="Build information unavailable"});
+// The HTML carries the build that actually loaded this client. Comparing only
+// two /version requests could incorrectly bless old JS after a deployment.
+const loadedBuild=$("meta[name=app-build]")?.content;
+const loadedVersion=$("meta[name=app-version]")?.content;
+let checkingVersion=false;
+function observeServerVersion(info){
+ if(!info||typeof info.build!=="string"||typeof info.version!=="string")return;
+ $("#buildInfo").textContent=String(info.environment||"unspecified")+" · v"+(loadedVersion||info.version)+" · build "+(loadedBuild||info.build);
+ if(loadedBuild&&loadedBuild!==info.build){
+   $("#updateMessage").textContent="Update available (v"+info.version+"). Reload to use the latest game.";
+   $("#updateNotice").hidden=false;
+ }
+}
+async function checkServerVersion(){
+ if(checkingVersion)return;
+ checkingVersion=true;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
+ try{
+   const response=await fetch("/version",{cache:"no-store",signal:controller.signal});
+   if(response.ok)observeServerVersion(await response.json());
+ }catch{/* An unavailable version endpoint must not interrupt a game. */}
+ finally{clearTimeout(timer);checkingVersion=false}
+}
+$("#reloadUpdate").onclick=()=>{
+ // A fresh navigation also gets a new HTML/asset URL. Preserve player storage.
+ const url=new URL(location.href);url.searchParams.set("_buildReload",String(Date.now()));location.replace(url.href);
+};
+socket.on("serverVersion",observeServerVersion);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkServerVersion()});
+window.addEventListener("pageshow",()=>checkServerVersion());
+setInterval(()=>{if(!document.hidden)checkServerVersion()},60000);
+checkServerVersion();

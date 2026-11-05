@@ -5,7 +5,7 @@ import { translateInterface, translateText } from "./i18n.js";
 const socket=io(), $=selector=>document.querySelector(selector);
 let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
 function localizeControls(root=document){translateInterface(root,uiLanguage)}
-let maintenance=null;
+let maintenance=null,invitation=null,lobbyPeople=[];
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
@@ -45,7 +45,7 @@ $("#renameOpen").onclick=()=>{$("#renameInput").value=me.name;$("#renameDialog")
 $("#renameSave").onclick=event=>{event.preventDefault();if(!$("#renameInput").reportValidity())return;socket.emit("rename",{name:$("#renameInput").value},response=>{if(response.ok)$("#renameDialog").close();else toast(response.error)})};
 socket.on("signedOut",()=>{
  localStorage.removeItem("token");localStorage.removeItem("name");sessionStorage.removeItem("tabletopView");
- me=null;clearRoomState();$("#welcome").hidden=false;$("#lobby").hidden=true;$("#room").hidden=true;$("#profileActions").hidden=true;$("#name").value="";
+ me=null;invitation=null;renderInvitation();clearRoomState();$("#welcome").hidden=false;$("#lobby").hidden=true;$("#room").hidden=true;$("#profileActions").hidden=true;$("#name").value="";
 });
 $("#signOut").onclick=()=>{
  const logout=()=>socket.emit("signOut",{},response=>{if(!response.ok)toast(response.error)});
@@ -53,9 +53,25 @@ $("#signOut").onclick=()=>{
  const warning=room.role==="watcher"?"Stop watching and sign out?":room.game&&!room.game.winner?"Leave your table and sign out? An active game will be forfeited and the match will end after this hand.":"Leave this table and sign out?";
  if(confirm(translateText(warning,uiLanguage)))socket.emit("leaveRoom",{},response=>{if(response.ok)logout();else toast(response.error)});
 };
-socket.on("people",people=>{
- $("#people").innerHTML=people.map(person=>`<p><span data-no-translate>${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();
-});
+function gameTypeName(type){return type==="rummy"?"Bulgarian Rummy (Joker)":"Backgammon"}
+function canInvite(person){return Boolean(room?.role==="player"&&!room.game&&room.players.length<room.maxPlayers&&!maintenance&&person.id!==me?.id&&person.connected&&!person.roomId)}
+function renderPeople(){
+ $("#people").innerHTML=lobbyPeople.map(person=>`<p><span><span data-no-translate>${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</span>${canInvite(person)?` <button class="small ghost" data-invite="${esc(person.id)}">Invite</button>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();
+}
+socket.on("people",people=>{lobbyPeople=people;renderPeople()});
+document.addEventListener("click",event=>{const id=event.target.closest?.("[data-invite]")?.dataset.invite;if(id)socket.emit("invitePlayer",{playerId:id},response=>response?.ok?toast("Invitation sent."):toast(response?.error))});
+
+function renderInvitation(){
+ const panel=$("#invitationNotice");panel.hidden=!invitation;if(!invitation)return;
+ $("#invitationFrom").textContent=invitation.fromName;$("#invitationRoom").textContent=invitation.roomName;$("#invitationGame").textContent=gameTypeName(invitation.gameType);localizeControls(panel);
+}
+socket.on("gameInvitation",value=>{invitation=value;renderInvitation()});
+function answerInvitation(accept){
+ if(!invitation)return;const id=invitation.id;
+ socket.emit("respondInvitation",{id,accept},response=>{if(!response?.ok){toast(response?.error);return}invitation=null;renderInvitation();if(response.joined)setLobbyView(false)});
+}
+$("#invitationAccept").onclick=()=>answerInvitation(true);
+$("#invitationDecline").onclick=()=>answerInvitation(false);
 function renderMaintenance(){
  $("#maintenanceNotice").hidden=!maintenance;if(!maintenance)return;
  const seconds=Math.max(0,Math.ceil((maintenance.deadline-Date.now())/1000));
@@ -67,14 +83,19 @@ setInterval(renderMaintenance,1000);
 
 let lobbyRooms=[];
 function memberList(members){return members?.length?members.map(member=>`<span class="member-name">${member.connected?"●":"○"} <span data-no-translate>${esc(member.name)}</span></span>`).join(" "):"<span>None</span>"}
+function currentGameLabel(item){
+ const game=item.currentGame;if(!game)return "";
+ if(item.gameType==="rummy")return `Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}${game.sprint?" · SPRINT ×2":""}`;
+ return `${variantName(game.variant)}${game.round&&game.roundCount?` · Round ${game.round} of ${game.roundCount}`:""} · Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}`;
+}
 function renderLobby(){
- $("#rooms").innerHTML=lobbyRooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}${item.variant?` · <span>${variantName(item.variant)}</span>`:""}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><p class="room-status"><span>${item.status==="finished"?"Finished":item.started?"In progress":"Waiting for players"}</span></p><p class="room-members"><strong>Players</strong>: ${memberList(item.playerList)}</p><p class="room-watchers"><strong>Watchers</strong>: ${memberList(item.watchers)}</p><div class="actions"><button data-join="${esc(item.id)}" ${item.started||room||maintenance?"disabled":""}>${item.started?"In progress":"Join table"}</button><button data-watch="${esc(item.id)}" class="ghost" ${room?"disabled":""}>Watch</button></div></article>`).join("")||"<p>No open rooms yet.</p>";
+ $("#rooms").innerHTML=lobbyRooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(gameTypeName(item.gameType))}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><p class="room-status"><span>${item.status==="finished"?"Finished":item.started?"In progress":"Waiting for players"}</span></p>${item.currentGame?`<p class="room-current"><strong>Current game</strong>: <span>${esc(currentGameLabel(item))}</span></p>`:""}<p class="room-members"><strong>Players</strong>: ${memberList(item.playerList)}</p><p class="room-watchers"><strong>Watchers</strong>: ${memberList(item.watchers)}</p><div class="actions"><button data-join="${esc(item.id)}" ${item.started||room||maintenance?"disabled":""}>${item.started?"In progress":"Join table"}</button><button data-watch="${esc(item.id)}" class="ghost" ${room?"disabled":""}>Watch</button></div></article>`).join("")||"<p>No open rooms yet.</p>";
  $("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room||maintenance);
  const watching=room?.role==="watcher";
  $("#resumeGame").textContent=watching?"Resume watching":"Resume game";
  $("#leaveLobby").textContent=watching?"Stop watching":"Leave game";
  $("#resumeHint").textContent=watching?"You are watching a table. Stop watching before joining another.":"Your seat is reserved. Leave before joining another table.";
- localizeControls();
+ renderPeople();localizeControls();
 }
 socket.on("lobby",rooms=>{lobbyRooms=rooms;renderLobby()});
 document.addEventListener("click",event=>{const id=event.target.dataset.join;if(id&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("joinRoom",{id},response=>!response.ok&&toast(response.error))}});
@@ -83,7 +104,7 @@ document.addEventListener("click",event=>{
  if(button&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("watchRoom",{id:button.dataset.watch},response=>{if(!response.ok){setLobbyView(true);toast(response.error)}})}
 });
 $("#newRoom").onclick=()=>{$("#createName").value=suggestName(lobbyRooms.map(r=>r.name),uiLanguage);$("#create").showModal()};
-$("#gameType").onchange=()=>{$("#maxPlayers").disabled=$("#gameType").value==="backgammon"};
+$("#gameType").onchange=()=>{const backgammon=$("#gameType").value==="backgammon";$("#maxPlayers").disabled=backgammon;if(backgammon)$("#maxPlayers").value=2};
 $("#createGo").onclick=event=>{event.preventDefault();socket.emit("createRoom",{name:$("#createName").value,language:uiLanguage,gameType:$("#gameType").value,maxPlayers:$("#maxPlayers").value},response=>{if(response.ok){$("#create").close();setLobbyView(false)}else toast(response.error)})};
 
 function setLobbyView(value){
@@ -128,14 +149,14 @@ $("#bgMatchGo").onclick=event=>{
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>8){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>9){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
  if(changedRoom||previousGame!==room.game?.gameNumber){selected.clear();stagedMelds=[];arrangeFrom=null}
  $("#lobby").hidden=!browsingLobby;$("#room").hidden=browsingLobby;
  renderLobby();
- $("#roomCode").textContent=`ROOM ${room.id} · ${room.gameType}`;
+ $("#roomCode").textContent=`ROOM ${room.id} · ${gameTypeName(room.gameType)}`;
  $("#roomName").textContent=room.name;
  $("#players").innerHTML=room.players.map((item,index)=>`<span>${room.gameType==="backgammon"?`<i class="player-checker side-${room.game?room.game.players.indexOf(item.id):index}" aria-hidden="true"></i><span>${(room.game?room.game.players.indexOf(item.id):index)===0?"White":"Red"}</span> `:""}${item.connected?"●":"○"} <span data-no-translate>${esc(item.name)}</span></span>`).join("");
  $("#watchers").innerHTML=`<strong>Watchers</strong>: ${memberList(room.watchers)}`;
@@ -428,3 +449,4 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkServe
 window.addEventListener("pageshow",()=>checkServerVersion());
 setInterval(()=>{if(!document.hidden)checkServerVersion()},60000);
 checkServerVersion();
+

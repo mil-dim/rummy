@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **8**
+Protocol version: **9**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -11,6 +11,8 @@ whether a move is legal.
 - `identify { token?, name }` → `{ ok, token, player, resumed, sessionReplaced }`
 - `createRoom { name, gameType, maxPlayers }`
 - `joinRoom { id }`
+- `invitePlayer { playerId }`
+- `respondInvitation { id, accept }`
 - `leaveRoom {}`: permanently remove the authenticated player from their seat; no target player ID is accepted.
 - `startGame { sprintCount?, roundCount? }`
 - `action { ... }`
@@ -21,8 +23,9 @@ Every client event uses a Socket.IO acknowledgement shaped as either
 The server emits:
 
 - `serverVersion`: environment, version and build fingerprint on connection.
-- `lobby`: public room summaries.
-- `room`: `{ protocolVersion, id, name, gameType, hostId, players, formerPlayers, match, game }`.
+- `lobby`: public room summaries, including public `currentGame` progress.
+- `room`: `{ protocolVersion, id, name, gameType, maxPlayers, hostId, players, formerPlayers, match, game }`.
+- `gameInvitation`: the current invitation or `null`.
 - `roomLeft { id }`: clears the room in all connected tabs of the leaving session.
 
 Private Rummy hands are redacted for other players until the hand finishes.
@@ -248,3 +251,23 @@ The client suggests unused funny names in the selected UI language.
 Only the private token-authenticated loopback operator API can set it; no public
 Socket.IO action controls it. A notice drains new rooms/player joins/new games
 but does not terminate or restart games. See OPERATIONS.md for deployment rules.
+
+
+## Invitations and lobby game labels (protocol 9)
+
+`invitePlayer {playerId}` is available to a seated player while their table is
+waiting and has a free seat. The target must be connected and have no player or
+watcher membership. The server stores at most one current invitation per identity
+and emits `gameInvitation {id,roomId,roomName,gameType,fromName}` to every tab and
+again after reconnect. Sending another invitation replaces the earlier one.
+
+`respondInvitation {id,accept}` declines and clears the invitation, or atomically
+revalidates maintenance, membership, capacity and game state before seating the
+recipient. Starting/deleting a room clears its outstanding invitations. An
+invitation never bypasses normal join authorization and contains no private game
+state.
+
+Lobby room entries add `currentGame` with public number/total/sprint and, for
+Backgammon, variant/round information. This lets the lobby name the game currently
+in progress without revealing cards or legal moves.
+

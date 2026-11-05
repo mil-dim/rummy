@@ -32,6 +32,7 @@ const bg = {
   'Accept concession':'Приеми предаването', 'Decline':'Откажи', 'Cancel offer':'Отмени предложението',
   'Watch':'Гледай', 'Resume watching':'Продължи наблюдението', 'Stop watching':'Спри наблюдението',
   'Change name':'Промени името', 'Sign out':'Изход', 'Save name':'Запази името',
+  'Invite':'Покани', 'Accept':'Приеми',
   'Roll': 'Хвърли заровете',
   'Roll to start': 'Хвърли за начало'
 };
@@ -72,6 +73,7 @@ const labels = {
  'Maintenance in progress. Try again after the update.':'Извършва се поддръжка. Опитайте след обновяването.',
 
  'People':'Хора', 'No one here yet.':'Все още няма никого.', 'In lobby':'В лобито', 'Playing':'Играе', 'Watching':'Наблюдава', 'Disconnected':'Временно изключен', 'At table':'На маса',
+ 'Game invitation':'Покана за игра', 'invited you to':'ви покани на', 'Invitation sent.':'Поканата е изпратена.', 'Current game':'Текуща игра',
  'Planned restart in':'Планирано рестартиране след', 'Maintenance is due. Waiting for the operator.':'Времето за поддръжка настъпи. Изчаква се операторът.',
  'Current games may continue. No automatic restart.':'Текущите игри могат да продължат. Няма автоматично рестартиране.',
  'Stop watching and sign out?':'Да спрете ли наблюдението и да излезете?',
@@ -107,7 +109,7 @@ const labels = {
  'Your name':'Вашето име', 'GAME LOBBY':'ЛОБИ', 'Choose your table':'Изберете маса',
  'Your seat is reserved. Leave before joining another table.':'Мястото ви е запазено. Напуснете, преди да се присъедините към друга маса.',
  'No open rooms yet.':'Все още няма отворени стаи.', 'Open a table':'Отворете маса',
- 'Bulgarian Rummy':'Българско реми', 'Backgammon':'Табла', 'rummy':'реми', 'backgammon':'табла',
+ 'Bulgarian Rummy':'Българско реми', 'Bulgarian Rummy (Joker)':'Българско реми (Жокер)', 'Backgammon':'Табла', 'rummy':'реми', 'backgammon':'табла',
  'Players':'Играчи', 'Player':'Играч', 'Rummy match':'Мач по реми', 'Backgammon match':'Мач по табла',
  'Sprint cycles':'Спринтови цикли', 'Number of games':'Брой партии',
  'With N players, every N+1 game is a double-points sprint.':'При N играчи всяка (N+1)-ва партия е спринт с двойни точки.',
@@ -154,7 +156,7 @@ export function translateText(text, language) {
    .replace(/^Gulbara · /,'Гюлбара · ')
    .replace(/^Tapa · /,'Тапа · ')
    .replace(/Round (\d+) of (\d+)/g,'Кръг $1 от $2')
-   .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
+   .replace(/^ROOM ([A-Za-z0-9]+) · (Bulgarian Rummy \(Joker\)|Backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
    .replace(/^(\d+)\/(\d+) players · (.+)$/, '$1/$2 играчи · $3')
    .replace(/Game (\d+) of (\d+)/g,'Партия $1 от $2')
    .replace(/Game (\d+)/g,'Партия $1')
@@ -204,3 +206,4 @@ export function translateInterface(root,language){
  }
  doc.documentElement.lang=language;
 }
+

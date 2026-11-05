@@ -2,6 +2,9 @@
 
 Self-hosted real-time Bulgarian Rummy and Backgammon for a Proxmox VM.
 
+Guest play requires no account. Optional Google sign-in supports persistent,
+administrator-approved rated profiles; casual games remain available to everyone.
+
 ## Proxmox installation
 
 Create a Debian 12 VM (2 vCPU, 2 GB RAM, 12 GB disk), install Docker, copy this
@@ -30,10 +33,10 @@ proxy must pass WebSocket connections.
 
 ## Current release notes
 
-Rooms and active games are held in server memory. Browser identity survives
-reconnects while the server is running. A later production hardening step
-should persist room/game snapshots and add account authentication if the
-internet endpoint will be public.
+Rooms and active games are held in server memory. Browser guest identity survives
+reconnects while the server is running. Optional signed profiles, completed rated
+matches and ratings persist in SQLite on the runtime-data volume. Active game
+snapshots are not yet persisted through a server restart.
 
 
 ### Browser regression check
@@ -61,7 +64,21 @@ rules describe pins and ascending doubles.
 Each player sees their own starting point as 24, with checker-color badges.
 Concede 1 point or concede Mars asks for confirmation and then the opponent's
 acceptance. It ends only the current game. Permanent Leave game remains separate
-and ends the match. Protocol 10 requires current browser assets after deployment.
+and ends the match. Protocol 11 requires current browser assets after deployment.
+
+## Optional Google sign-in and ratings
+
+Leave Google variables empty to keep guest-only operation. To enable sign-in,
+create a Google OAuth web client, add the exact callback URL
+`https://YOUR_HOST/auth/google/callback`, and configure `PUBLIC_BASE_URL`,
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the environment `.env` file.
+Never commit the client secret. After first sign-in, approve known people through
+the private operator command documented in `docs/OPERATIONS.md`.
+
+Casual play never requires an account. A host can select Rated only when every
+seated player is signed in, approved, and uses a distinct account. Rummy, normal
+Backgammon and rotating Backgammon have separate ratings. New accounts transfer
+rating slowly for their first ten rated matches.
 
 
 ## Watching games

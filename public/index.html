@@ -6,7 +6,7 @@
   <title>Tabletop</title><link rel="stylesheet" href="/styles.css?v=__APP_BUILD__">
 </head>
 <body>
-  <header><div><b>TABLETOP</b></div><nav><select id="uiLanguage" aria-label="Language / Език"><option value="en">EN</option><option value="bg">БГ</option></select><span id="profileActions" hidden><span id="currentName" data-no-translate></span> <button id="renameOpen" class="ghost">Change name</button> <button id="signOut" class="ghost">Sign out</button></span><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
+  <header><div><b>TABLETOP</b></div><nav><select id="uiLanguage" aria-label="Language / Език"><option value="en">EN</option><option value="bg">БГ</option></select><span id="authActions" hidden><a id="googleSignIn" class="button-link" href="/auth/google">Sign in with Google</a><span id="accountBadge" hidden></span><button id="accountSignOut" class="ghost" hidden>Disconnect Google</button></span><span id="profileActions" hidden><span id="currentName" data-no-translate></span> <button id="renameOpen" class="ghost">Change name</button> <button id="signOut" class="ghost">Sign out</button></span><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
   <section id="updateNotice" class="update-notice" role="status" hidden><span id="updateMessage">An update is available.</span><button id="reloadUpdate">Reload updated game</button></section>
   <section id="maintenanceNotice" class="maintenance-notice" role="alert" hidden><strong id="maintenanceCountdown"></strong><span id="maintenanceMessage" data-no-translate></span><small>Current games may continue. No automatic restart.</small></section>
   <aside id="invitationNotice" class="invitation-notice" role="status" hidden>
@@ -24,7 +24,7 @@
     <section id="lobby" hidden>
       <div class="title"><div><p class="eyebrow">GAME LOBBY</p><h2>Choose your table</h2></div><button id="newRoom">New room</button></div>
       <div id="resumeArea" class="actions" hidden><button id="resumeGame">Resume game</button><button id="leaveLobby" class="ghost">Leave game</button><span id="resumeHint">Your seat is reserved. Leave before joining another table.</span></div>
-      <section class="people-panel"><h3>People</h3><div id="people"></div></section><div id="rooms" class="rooms"></div>
+      <section class="people-panel"><h3>People</h3><div id="people"></div></section><section class="scoreboard-panel"><h3>Ratings</h3><p id="ratingNotice">Sign-in is optional. Only approved signed players can choose rated matches.</p><div id="scoreboards"></div></section><div id="rooms" class="rooms"></div>
     </section>
     <section id="room" hidden>
       <div class="title"><div><p class="eyebrow" id="roomCode"></p><h2 id="roomName"></h2></div><button id="start">Start game</button></div>
@@ -43,6 +43,7 @@
     <label>Sprint cycles
       <select id="sprintCount"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
     </label>
+    <label><input id="rummyRated" type="checkbox"> Rated match</label><small class="ratedHint"></small>
     <p class="muted">With N players, every N+1 game is a double-points sprint.</p>
     <menu><button value="cancel" class="ghost">Cancel</button><button id="matchGo" value="default">Start match</button></menu>
   </form></dialog>
@@ -50,6 +51,7 @@
     <label>Match format <select id="bgVariantMode"><option value="normal">Normal Backgammon only</option><option value="rotate">Rotate: Normal → Gulbara → Tapa</option></select></label>
     <label><span id="bgCountLabel">Number of games</span> <input id="bgGameCount" type="number" value="3" min="1" max="100" required></label>
     <p id="bgFormatHint">Every game uses Normal Backgammon.</p>
+    <label><input id="bgRated" type="checkbox"> Rated match</label><small class="ratedHint"></small>
     <p>Win: 1 point. Mars (opponent has borne off none): 2 points.</p>
     <menu><button value="cancel" class="ghost">Cancel</button><button id="bgMatchGo">Start match</button></menu>
   </form></dialog>

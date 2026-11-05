@@ -108,6 +108,7 @@ test('room leave, host transfer, forfeit, multi-tab cleanup and reconnect', {tim
   assert.equal((await send(b,'joinRoom',{id:bgId})).ok,true);
   assert.equal((await send(reconnected,'startGame',{roundCount:0})).ok,false);
   assert.equal((await send(reconnected,'startGame',{roundCount:1,variantMode:'invented'})).ok,false);
+  assert.equal((await send(reconnected,'startGame',{roundCount:1,variantMode:'normal',rated:true})).ok,false,'guests cannot start rated matches');
   assert.equal((await send(reconnected,'startGame',{roundCount:1,variantMode:'normal'})).ok,true);
   assert.equal(reconnected.room.match.totalGames,1);
   assert.equal(reconnected.room.match.variantMode,'normal');

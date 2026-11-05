@@ -6,11 +6,25 @@ const socket=io(), $=selector=>document.querySelector(selector);
 let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
 function localizeControls(root=document){translateInterface(root,uiLanguage)}
 let maintenance=null,invitation=null,lobbyPeople=[];
+let signedAccount=null,authConfigured=false;
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
 const playerName=id=>`<span data-no-translate>${esc(player(id)?.name||"Player")}</span>`;
 const toast=message=>{const element=$("#toast");element.textContent=translateText(String(message||"Something went wrong."),uiLanguage);element.style.display="block";setTimeout(()=>element.style.display="none",3000)};
+function renderAccount(){
+ $("#authActions").hidden=!authConfigured&&!signedAccount;$("#googleSignIn").hidden=Boolean(signedAccount)||!authConfigured;
+ $("#accountBadge").hidden=!signedAccount;$("#accountSignOut").hidden=!signedAccount;
+ if(signedAccount)$("#accountBadge").textContent=`${signedAccount.displayName} · ${signedAccount.approved?"Rated":"Approval pending"}`;
+}
+async function loadAccount(){try{const response=await fetch('/api/account',{cache:'no-store'}),data=await response.json();authConfigured=Boolean(data.configured);signedAccount=data.account;renderAccount()}catch{}}
+$("#accountSignOut").onclick=async()=>{await fetch('/auth/logout',{method:'POST'});location.reload()};
+const ratingName=category=>category==='rummy'?'Bulgarian Rummy':category==='backgammon-normal'?'Normal Backgammon':'Backgammon rotation';
+async function loadScoreboard(){
+ try{const response=await fetch('/api/scoreboard',{cache:'no-store'}),data=await response.json(),groups=(data.ratings||[]).reduce((all,row)=>{(all[row.category]||=[]).push(row);return all},{});
+  $("#scoreboards").innerHTML=Object.keys(groups).length?`<div class="scoreboard-grid">${Object.entries(groups).map(([category,rows])=>`<div><h4>${esc(ratingName(category))}</h4><table><thead><tr><th>Player</th><th>Rating</th><th>Games</th></tr></thead><tbody>${rows.map(row=>`<tr><td data-no-translate>${esc(row.display_name)}</td><td>${Number(row.rating)}</td><td>${Number(row.games)}</td></tr>`).join("")}</tbody></table></div>`).join("")}</div>`:'<p>No rated matches yet.</p>';localizeControls($("#scoreboards"));
+ }catch{$("#scoreboards").innerHTML='<p>Ratings are temporarily unavailable.</p>'}
+}
 
 socket.on("connect",()=>{
  $("#status").textContent="Connected";localizeControls();
@@ -87,8 +101,9 @@ let lobbyRooms=[];
 function memberList(members){return members?.length?members.map(member=>`<span class="member-name">${member.connected?"●":"○"} <span data-no-translate>${esc(member.name)}</span></span>`).join(" "):"<span>None</span>"}
 function currentGameLabel(item){
  const game=item.currentGame;if(!game)return "";
- if(item.gameType==="rummy")return `Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}${game.sprint?" · SPRINT ×2":""}`;
- return `${variantName(game.variant)}${game.round&&game.roundCount?` · Round ${game.round} of ${game.roundCount}`:""} · Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}`;
+ const rated=game.rated?" · Rated":"";
+ if(item.gameType==="rummy")return `Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}${game.sprint?" · SPRINT ×2":""}${rated}`;
+ return `${variantName(game.variant)}${game.round&&game.roundCount?` · Round ${game.round} of ${game.roundCount}`:""} · Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}${rated}`;
 }
 function renderLobby(){
  $("#rooms").innerHTML=lobbyRooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(gameTypeName(item.gameType))}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><p class="room-status"><span>${item.status==="finished"?"Finished":item.started?"In progress":"Waiting for players"}</span></p>${item.currentGame?`<p class="room-current"><strong>Current game</strong>: <span>${esc(currentGameLabel(item))}</span></p>`:""}<p class="room-members"><strong>Players</strong>: ${memberList(item.playerList)}</p><p class="room-watchers"><strong>Watchers</strong>: ${memberList(item.watchers)}</p><div class="actions"><button data-join="${esc(item.id)}" ${item.started||room||maintenance?"disabled":""}>${item.started?"In progress":"Join table"}</button><button data-watch="${esc(item.id)}" class="ghost" ${room?"disabled":""}>Watch</button></div></article>`).join("")||"<p>No open rooms yet.</p>";
@@ -99,7 +114,7 @@ function renderLobby(){
  $("#resumeHint").textContent=watching?"You are watching a table. Stop watching before joining another.":"Your seat is reserved. Leave before joining another table.";
  renderPeople();localizeControls();
 }
-socket.on("lobby",rooms=>{lobbyRooms=rooms;renderLobby()});
+socket.on("lobby",rooms=>{lobbyRooms=rooms;renderLobby();loadScoreboard()});
 document.addEventListener("click",event=>{const id=event.target.dataset.join;if(id&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("joinRoom",{id},response=>!response.ok&&toast(response.error))}});
 document.addEventListener("click",event=>{
  const button=event.target.closest?.("[data-watch]");
@@ -142,22 +157,27 @@ function renderBackgammonFormat(){
  $("#bgCountLabel").textContent=translateText(rotating?"Number of rounds":"Number of games",uiLanguage);
  $("#bgFormatHint").textContent=translateText(rotating?"One round: Normal Backgammon → Gulbara → Tapa.":"Every game uses Normal Backgammon.",uiLanguage);
 }
+function configureRated(checkbox){
+ const eligible=room?.players?.length>1&&room.players.every(player=>player.account?.approved);
+ checkbox.disabled=!eligible;checkbox.checked=eligible&&checkbox.checked;
+ const hint=checkbox.closest('form').querySelector('.ratedHint');hint.textContent=translateText(eligible?'Optional: results will update the public rating.':'Rated play requires every player to sign in and receive approval.',uiLanguage);
+}
 $("#bgVariantMode").onchange=renderBackgammonFormat;
 $("#start").onclick=()=>{
- if(room.gameType==="backgammon"&&(!room.match||room.match.finished)){renderBackgammonFormat();$("#bgMatchSetup").showModal();return}
- if(room.gameType==="rummy"&&(!room.match||room.match.finished)){$("#matchSetup").showModal();return}
+ if(room.gameType==="backgammon"&&(!room.match||room.match.finished)){renderBackgammonFormat();configureRated($("#bgRated"));$("#bgMatchSetup").showModal();return}
+ if(room.gameType==="rummy"&&(!room.match||room.match.finished)){configureRated($("#rummyRated"));$("#matchSetup").showModal();return}
  socket.emit("startGame",{},response=>!response.ok&&toast(response.error));
 };
-$("#matchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{sprintCount:Number($("#sprintCount").value)},response=>{if(response.ok)$("#matchSetup").close();else toast(response.error)})};
+$("#matchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{sprintCount:Number($("#sprintCount").value),rated:$("#rummyRated").checked},response=>{if(response.ok)$("#matchSetup").close();else toast(response.error)})};
 
 $("#bgMatchGo").onclick=event=>{
  event.preventDefault();const input=$("#bgGameCount");if(!input.reportValidity())return;
- socket.emit("startGame",{roundCount:Number(input.value),variantMode:$("#bgVariantMode").value},response=>{if(response.ok)$("#bgMatchSetup").close();else toast(response.error)});
+ socket.emit("startGame",{roundCount:Number(input.value),variantMode:$("#bgVariantMode").value,rated:$("#bgRated").checked},response=>{if(response.ok)$("#bgMatchSetup").close();else toast(response.error)});
 };
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>10){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>11){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -320,7 +340,7 @@ function renderRummy(game){
  const handIds=new Set(hand.map(card=>card.id));
  stagedMelds=stagedMelds.filter(meld=>meld.cardIds.every(id=>handIds.has(id)));
  const turn=game.players[game.turn]===me.id,active=turn&&!game.winner;
- const progress=room.match?`Game ${game.gameNumber} of ${room.match.totalGames}`:`Game ${game.gameNumber}`;
+ const progress=(room.match?`Game ${game.gameNumber} of ${room.match.totalGames}`:`Game ${game.gameNumber}`)+(room.match?.rated?" · Rated":"");
  const status=game.winner?`${progress} finished`:`${game.sprint?"⚡ SPRINT ×2 · ":""}${progress} · ${turn?"Your turn":playerName(game.players[game.turn])+"'s turn"}`;
  const discard=game.discard.at(-1);
  $("#game").innerHTML=`<p class="game-status">${status}</p>${game.forfeited?.length?`<p class="notice">Left by forfeit: ${game.forfeited.map(playerName).join(", ")}. This is the last hand of this match.</p>`:""}
@@ -372,7 +392,7 @@ function renderBackgammon(game){
  const offSide=side=>`<div class="off-group side-${side}" aria-label="${side===0?"White":"Red"} borne off: ${Number(game.borneOff[side])}"><span>${side===0?"White":"Red"}</span><div class="off-checkers">${Array.from({length:game.borneOff[side]},()=>`<i class="off-checker side-${side}"></i>`).join("")}</div><b>${Number(game.borneOff[side])}</b></div>`;
  const opening=game.phase==="opening";
  const rotating=room.match?.variantMode!=="normal";
- const progress=`${variantName(game.variant)}${rotating?` · Round ${Math.ceil(game.gameNumber/3)} of ${room.match?.roundCount||Math.ceil((room.match?.totalGames||3)/3)}`:""} · Game ${game.gameNumber} of ${room.match?.totalGames||3}`;
+ const progress=`${variantName(game.variant)}${rotating?` · Round ${Math.ceil(game.gameNumber/3)} of ${room.match?.roundCount||Math.ceil((room.match?.totalGames||3)/3)}`:""} · Game ${game.gameNumber} of ${room.match?.totalGames||3}${room.match?.rated?" · Rated":""}`;
  const status=game.winner?`${playerName(game.winner)} wins${game.scores?.mars?" — Mars!":"!"}`:opening?"Roll to decide who starts":`${turn?"Your move":playerName(game.players[game.turn])+"'s move"}`;
  const openingHtml=game.openingRolls.some(die=>die!==null)||opening?`<section class="opening-rolls"><p>${opening&&game.openingPrevious?"Opening tie — both players roll again.":opening?"Each player rolls one die. Higher roll starts, then rolls both dice again.":"Opening rolls"}</p>${game.players.map((id,side)=>`<div><span>${playerName(id)}</span>${game.openingRolls[side]!==null?dieHtml(game.openingRolls[side]):"<span>Waiting…</span>"}</div>`).join("")}${opening&&game.openingPrevious?`<small>Previous tie: ${game.openingPrevious.join(" : ")}</small>`:""}</section>`:"";
  const legal=game.legalMoves||[];
@@ -419,6 +439,7 @@ $("#uiLanguage").onchange=()=>{
  document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 };
 localizeControls();
+loadAccount();loadScoreboard();
 document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 
 $("#rulesOpen").onclick=()=>$("#rules").showModal();

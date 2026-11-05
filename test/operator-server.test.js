@@ -11,6 +11,7 @@ test('private operations API, draining, audit, rename and signout authorization'
  const admin=(method,path,body)=>new Promise((resolve,reject)=>{const req=http.request({hostname:'127.0.0.1',port:18095,method,path,headers:{Authorization:'Bearer '+readFileSync(tokenPath,'utf8')}},res=>{let data='';res.on('data',b=>data+=b);res.on('end',()=>resolve({code:res.statusCode,...JSON.parse(data)}))});req.on('error',reject);req.end(body?JSON.stringify(body):null)});
  assert.equal((await fetch('http://127.0.0.1:18094/status')).status,404);assert.equal((await fetch('http://127.0.0.1:18094/maintenance',{method:'POST'})).status,404);
  const unauthorized=await fetch('http://127.0.0.1:18095/status');assert.equal(unauthorized.status,401);
+ assert.deepEqual((await admin('GET','/accounts')).accounts,[]);
  const a=await connect('Milen'),b=await connect('Ilia'),c=await connect('Lobby');
  const room=await send(a,'createRoom',{name:'Same table',gameType:'backgammon'});assert.equal(room.ok,true);
  const duplicate=await send(c,'createRoom',{name:'same TABLE',gameType:'rummy'});assert.equal(duplicate.ok,true);assert.equal(c.room.name,'same TABLE 2');await send(c,'leaveRoom');

@@ -9,6 +9,11 @@
   <header><div><b>TABLETOP</b><span>LAN</span></div><nav><select id="uiLanguage" aria-label="Language / Език"><option value="en">EN</option><option value="bg">БГ</option></select><span id="profileActions" hidden><span id="currentName" data-no-translate></span> <button id="renameOpen" class="ghost">Change name</button> <button id="signOut" class="ghost">Sign out</button></span><button id="rulesOpen" class="ghost">Rules / Правила</button><small id="status">Connecting…</small></nav></header>
   <section id="updateNotice" class="update-notice" role="status" hidden><span id="updateMessage">An update is available.</span><button id="reloadUpdate">Reload updated game</button></section>
   <section id="maintenanceNotice" class="maintenance-notice" role="alert" hidden><strong id="maintenanceCountdown"></strong><span id="maintenanceMessage" data-no-translate></span><small>Current games may continue. No automatic restart.</small></section>
+  <aside id="invitationNotice" class="invitation-notice" role="status" hidden>
+    <strong>Game invitation</strong>
+    <p><span id="invitationFrom" data-no-translate></span> invited you to <span id="invitationRoom" data-no-translate></span> · <span id="invitationGame"></span></p>
+    <div class="actions"><button id="invitationAccept">Accept</button><button id="invitationDecline" class="ghost">Decline</button></div>
+  </aside>
   <main>
     <section id="welcome" class="panel">
       <p class="eyebrow">A PRIVATE GAME TABLE</p><h1>Cards, dice,<br><em>good company.</em></h1>
@@ -29,8 +34,8 @@
   <dialog id="renameDialog"><form method="dialog"><h2>Change name</h2><input id="renameInput" maxlength="24" required><menu><button value="cancel" class="ghost">Cancel</button><button id="renameSave">Save name</button></menu></form></dialog>
   <dialog id="create"><form method="dialog"><h2>Open a table</h2>
     <input id="createName" value="Evening game" maxlength="30">
-    <select id="gameType"><option value="rummy">Bulgarian Rummy</option><option value="backgammon">Backgammon</option></select>
-    <label>Players <input id="maxPlayers" type="number" value="4" min="2" max="6"></label>
+    <select id="gameType"><option value="rummy">Bulgarian Rummy (Joker)</option><option value="backgammon">Backgammon</option></select>
+    <label>Players <input id="maxPlayers" type="number" value="2" min="2" max="6"></label>
     <menu><button value="cancel" class="ghost">Cancel</button><button id="createGo" value="default">Create</button></menu>
   </form></dialog>
   <dialog id="matchSetup"><form method="dialog"><h2>Rummy match</h2>
@@ -50,7 +55,7 @@
     <div class="title"><h2>Rules / Правила</h2><button value="cancel" class="ghost">Close</button></div>
     <div class="actions"><button type="button" data-rules-lang="en" lang="en">English</button><button type="button" data-rules-lang="bg" lang="bg">Български</button></div>
     <article class="rules-language" data-language="en">
-      <h3>Bulgarian Rummy</h3>
+      <h3>Bulgarian Rummy (Joker)</h3>
       <ul>
         <li>Two decks plus two jokers; 13 cards per player. One face-up discard starts the game. The starting player rotates each game.</li>
         <li>Draw from stock or take the face-up discard, then meld/add cards and discard one card.</li>
@@ -68,7 +73,7 @@
       <h3>Backgammon</h3><p>Choose the number of rounds before the match. In the first game each player rolls one die; ties are rerolled. The higher roller starts and rolls both dice again. Later games start with the previous winner. Use both dice whenever possible, or the higher die if only one can be used. Doubles give four moves; play as many as legally possible. Hit checkers wait on the center bar and must re-enter first. Borne-off checkers go outside the board. Undo moves one at a time before the final dice move: one move on normal rolls, up to three on doubles. The final move commits the turn. If blocked early, undo remains available until the opponent rolls. Blocked rolls stay visible until the next roll. A win earns 1 point, or 2 for Mars when the opponent has borne off none; forfeits earn 1. Points accumulate across the chosen rounds.</p>
     </article>
     <article class="rules-language" data-language="bg" hidden>
-      <h3>Български Реми</h3>
+      <h3>Български Реми (Жокер)</h3>
       <ul>
         <li>Две тестета и два жокера; по 13 карти. След раздаването една карта се обръща за начало на купчината. Започващият играч се сменя по ред във всяка партия.</li>
         <li>Тегли се от тестето или се взема горната изхвърлена карта, след което се сваля/долепя и се изхвърля една карта.</li>
@@ -90,3 +95,4 @@
   <div id="toast"></div>
   <script src="/socket.io/socket.io.js"></script><script type="module" src="/app.js?v=__APP_BUILD__"></script>
 </body></html>
+

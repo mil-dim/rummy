@@ -131,5 +131,7 @@ header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 .room-status{font-weight:700}.hand-counts{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.hand-counts h3{width:100%}.hand-counts p{margin:0 0 12px}
 
 .maintenance-notice{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:16px;background:#fff1ba;border-bottom:2px solid #b04b2e}.maintenance-notice small{width:100%;text-align:center}
-.people-panel{margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.people-panel p{margin:5px 0;overflow-wrap:anywhere}#profileActions{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px}#currentName{max-width:140px;overflow-wrap:anywhere}
+.people-panel{margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.people-panel p{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0;overflow-wrap:anywhere}.small{padding:5px 9px;font-size:13px;white-space:nowrap}#profileActions{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px}#currentName{max-width:140px;overflow-wrap:anywhere}
+.invitation-notice{position:fixed;z-index:30;top:86px;right:18px;width:min(360px,calc(100vw - 36px));padding:14px;background:#fffaf0;border:2px solid var(--green);border-radius:14px;box-shadow:0 12px 34px #18211b3d}.invitation-notice p{margin:8px 0 12px}.invitation-notice .actions button{padding:8px 12px}
 [hidden]{display:none!important}
+

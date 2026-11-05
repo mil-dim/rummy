@@ -40,7 +40,7 @@ const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
-const PROTOCOL_VERSION = 8;
+const PROTOCOL_VERSION = 9;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -154,6 +154,14 @@ function lobby() {
     started: Boolean(room.game),
     status: !room.game ? "waiting" : room.game.winner ? "finished" : "playing",
     variant: room.game?.variant || null,
+    currentGame: room.game ? {
+      number: room.game.gameNumber,
+      totalGames: room.match?.totalGames || null,
+      sprint: Boolean(room.game.sprint),
+      variant: room.game.variant || null,
+      round: room.game.kind === "backgammon" ? Math.ceil(room.game.gameNumber / 3) : null,
+      roundCount: room.game.kind === "backgammon" ? room.match?.roundCount || null : null
+    } : null,
     playerList: room.players.map(playerView),
     watchers: (room.watchers || []).map(playerView)
   }));
@@ -171,6 +179,19 @@ function people(){
  });
 }
 function emitPeople(){io.emit("people",people())}
+function invitationView(invitation){
+ const room=rooms.get(invitation.roomId);
+ return room?{id:invitation.id,roomId:room.id,roomName:room.name,gameType:room.gameType,fromName:invitation.fromName}:null;
+}
+function emitInvitation(player){
+ const view=player.invitation?invitationView(player.invitation):null;
+ if(player.invitation&&!view)player.invitation=null;
+ for(const client of io.sockets.sockets.values())if(client.data.player===player)client.emit("gameInvitation",view);
+}
+function clearInvitation(player){player.invitation=null;emitInvitation(player)}
+function clearRoomInvitations(roomId){
+ for(const player of sessions.values())if(player.invitation?.roomId===roomId)clearInvitation(player);
+}
 function checkMaintenance(){if(maintenance)throw Error("Maintenance announced. New games are paused.")}
 function adminStatus(){
  const users=people(),unfinished=[...rooms.values()].filter(r=>r.game&&!r.game.winner);
@@ -204,6 +225,7 @@ function notifyRoomLeft(playerId, roomId) {
   }
 }
 function deleteRoom(room) {
+  clearRoomInvitations(room.id);
   for (const member of [...room.players,...(room.watchers || [])]) notifyRoomLeft(member.id,room.id);
   rooms.delete(room.id);
 }
@@ -225,6 +247,7 @@ function emitRoom(room, touch = true) {
         id: room.id,
         name: room.name,
         gameType: room.gameType,
+        maxPlayers: room.maxPlayers,
         hostId: room.hostId,
         role,
         watchers: (room.watchers || []).map(playerView),
@@ -342,6 +365,7 @@ io.on("connection", socket => {
 
       emitPeople();
       reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findMembership(player.id)) });
+      emitInvitation(player);
       for (const room of rooms.values()) {
         if (room.players.some(candidate => candidate.id === player.id) || (room.watchers || []).some(candidate => candidate.id === player.id)) {
           player.browsingLobby=false;
@@ -374,6 +398,36 @@ io.on("connection", socket => {
     emitPeople();reply(ack,{ok:true});
   });
 
+  socket.on("invitePlayer",(payload,ack)=>{
+    try{
+      const player=socket.data.player,room=findPlayerRoom(player?.id);
+      if(!player||!room)throw Error("Join a table before inviting someone.");
+      if(room.game)throw Error("Invitations are available before the game starts.");
+      if(room.players.length>=room.maxPlayers)throw Error("This table is full.");
+      checkMaintenance();
+      const targetId=typeof payload?.playerId==="string"?payload.playerId.slice(0,64):"";
+      const target=[...sessions.values()].find(candidate=>candidate.id===targetId);
+      if(!target||!target.socketId)throw Error("That person is no longer online.");
+      if(target===player)throw Error("You are already at this table.");
+      if(findMembership(target.id))throw Error("That person is already at a table.");
+      target.invitation={id:randomUUID(),roomId:room.id,fromId:player.id,fromName:player.name};
+      emitInvitation(target);reply(ack,{ok:true});
+    }catch(error){reply(ack,{ok:false,error:error.message})}
+  });
+
+  socket.on("respondInvitation",(payload,ack)=>{
+    try{
+      const player=socket.data.player,invitation=player?.invitation;
+      if(!player||!invitation||payload?.id!==invitation.id)throw Error("This invitation is no longer available.");
+      if(payload.accept!==true){clearInvitation(player);reply(ack,{ok:true,joined:false});return}
+      const room=rooms.get(invitation.roomId);
+      if(!room||room.game||room.players.length>=room.maxPlayers)throw Error("This table is no longer available.");
+      if(findMembership(player.id))throw Error("Leave your current table first.");
+      checkMaintenance();
+      clearInvitation(player);room.players.push(player);clearRoomInvitations(room.id);player.browsingLobby=false;socket.join(room.id);emitRoom(room);reply(ack,{ok:true,joined:true});
+    }catch(error){if(socket.data.player?.invitation)clearInvitation(socket.data.player);reply(ack,{ok:false,error:error.message})}
+  });
+
   socket.on("createRoom", (payload, ack) => {
     try {
       if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -393,7 +447,7 @@ io.on("connection", socket => {
         gameType,
         maxPlayers: gameType === "backgammon"
           ? 2
-          : Math.max(2, Math.min(6, Number(payload.maxPlayers) || 4)),
+          : Math.max(2, Math.min(6, Number(payload.maxPlayers) || 2)),
         players: [player],
         watchers: [],
         hostId: player.id,
@@ -403,6 +457,7 @@ io.on("connection", socket => {
         lastActive: Date.now()
       };
       rooms.set(id, room);
+      if(player.invitation)clearInvitation(player);
       player.browsingLobby=false;
       socket.join(id);
       emitRoom(room);
@@ -429,7 +484,9 @@ io.on("connection", socket => {
         checkMaintenance();
         if (room.game || room.players.length >= room.maxPlayers) throw Error("Room is unavailable.");
         room.players.push(player);
+        if(room.players.length>=room.maxPlayers)clearRoomInvitations(room.id);
       }
+      if(player.invitation)clearInvitation(player);
       player.browsingLobby=false;
       socket.join(room.id);
       emitRoom(room);
@@ -455,6 +512,7 @@ io.on("connection", socket => {
         if (room.watchers.length >= MAX_WATCHERS) throw Error("The watcher limit has been reached.");
         room.watchers.push(player);
       }
+      if(player.invitation)clearInvitation(player);
       player.browsingLobby=false;
       socket.join(room.id); emitRoom(room, false); reply(ack,{ok:true});
     } catch (error) { reply(ack,{ok:false,error:error.message}); }
@@ -507,6 +565,7 @@ io.on("connection", socket => {
       if (room.game && !room.game.winner) throw Error("The current game is still in progress.");
 
       checkMaintenance();
+      clearRoomInvitations(room.id);
       let starter = room.game?.winner || null;
       if (room.gameType === "backgammon" && (!room.match || room.match.finished)) {
         startBackgammonMatch(room, payload?.roundCount ?? 3);
@@ -593,3 +652,4 @@ cleanupTimer.unref();
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Tabletop listening on port ${PORT}`);
 });
+

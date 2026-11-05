@@ -29,6 +29,8 @@ const buildInfo = {
 const indexHtml = readFileSync(new URL("public/index.html", sourceRoot), "utf8")
   .replaceAll("__APP_BUILD__", buildInfo.build)
   .replaceAll("__APP_VERSION__", buildInfo.version);
+const privacyHtml = readFileSync(new URL("public/privacy.html", sourceRoot), "utf8");
+const termsHtml = readFileSync(new URL("public/terms.html", sourceRoot), "utf8");
 
 const PORT = Number(process.env.PORT) || 8080;
 const MAX_ROOMS = 100;
@@ -130,6 +132,8 @@ app.get(["/", "/index.html"], (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.type("html").send(indexHtml);
 });
+app.get("/privacy", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.type("html").send(privacyHtml); });
+app.get("/terms", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.type("html").send(termsHtml); });
 
 // Revalidate assets on every load, including unversioned URLs used by older
 // clients. HTML must always be fetched so it can point to the current assets.

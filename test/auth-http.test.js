@@ -8,5 +8,8 @@ test('optional authentication stays disabled cleanly and public rating responses
  const account=await fetch('http://127.0.0.1:18102/api/account').then(response=>response.json());assert.deepEqual(account,{configured:false,account:null});
  const board=await fetch('http://127.0.0.1:18102/api/scoreboard').then(response=>response.json());assert.deepEqual(board,{ratings:[],recent:[]});assert.ok(!JSON.stringify(board).match(/email|token|subject/i));
  assert.equal((await fetch('http://127.0.0.1:18102/auth/google',{redirect:'manual'})).status,503);
+ const home=await fetch('http://127.0.0.1:18102/').then(response=>response.text());assert.match(home,/href="\/privacy"/);assert.match(home,/href="\/terms"/);
+ const privacy=await fetch('http://127.0.0.1:18102/privacy');assert.equal(privacy.status,200);assert.equal(privacy.headers.get('cache-control'),'no-store');assert.match(await privacy.text(),/Google access tokens[^<]+are not retained/);
+ const terms=await fetch('http://127.0.0.1:18102/terms');assert.equal(terms.status,200);assert.equal(terms.headers.get('cache-control'),'no-store');assert.match(await terms.text(),/not a gambling service/);
  const logout=await fetch('http://127.0.0.1:18102/auth/logout',{method:'POST'});assert.equal(logout.status,200);assert.match(logout.headers.get('set-cookie'),/Max-Age=0/);
 });

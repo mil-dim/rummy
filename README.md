@@ -68,6 +68,9 @@ and ends the match. Protocol 11 requires current browser assets after deployment
 
 ## Optional Google sign-in and ratings
 
+The public homepage links to `/privacy` and `/terms`; use those exact
+HTTPS URLs for Google OAuth production branding and verification.
+
 Leave Google variables empty to keep guest-only operation. To enable sign-in,
 create a Google OAuth web client, add the exact callback URL
 `https://YOUR_HOST/auth/google/callback`, and configure `PUBLIC_BASE_URL`,

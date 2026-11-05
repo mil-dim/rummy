@@ -21,6 +21,7 @@ test('lobby and room translations preserve numeric state and identifiers',()=>{
  ['Game 6 of 6 finished','Партия 6 от 6 приключи'],
  ['2/4 players · ABC123','2/4 играчи · ABC123'],
  ['ROOM ABC123 · rummy','СТАЯ ABC123 · реми'],
+ ['ROOM ABC123 · Bulgarian Rummy (Joker)','СТАЯ ABC123 · Българско реми (Жокер)'],
  ['Roll history — last 12 rolls','История — последни 12 хвърляния'],
  ['Point 24, 5 checkers','Позиция 24, 5 пула'],
  ['Waiting for the host to start…','Изчаква се домакинът да започне…'],
@@ -45,3 +46,4 @@ test('watcher controls and read-only notice translate into Bulgarian',()=>{
  assert.equal(translateText('Watchers','bg'),'Наблюдатели');
  assert.equal(translateText('Cards remaining','bg'),'Останали карти');
 });
+

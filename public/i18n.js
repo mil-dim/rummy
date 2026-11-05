@@ -156,6 +156,7 @@ export function translateText(text, language) {
    .replace(/^Gulbara · /,'Гюлбара · ')
    .replace(/^Tapa · /,'Тапа · ')
    .replace(/Round (\d+) of (\d+)/g,'Кръг $1 от $2')
+   .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
    .replace(/^ROOM ([A-Za-z0-9]+) · (Bulgarian Rummy \(Joker\)|Backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
    .replace(/^(\d+)\/(\d+) players · (.+)$/, '$1/$2 играчи · $3')
    .replace(/Game (\d+) of (\d+)/g,'Партия $1 от $2')

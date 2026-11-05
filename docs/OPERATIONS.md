@@ -40,19 +40,44 @@ unfinished games, even if their players disconnected. It does not delete paused
 games or make a disconnected player lose. Finished/waiting rooms can be cleared
 by a restart once everyone is offline.
 
-After merging, pulling and rsyncing source into this environment with the usual
-`.env`, `.git`, `data` and `upload` exclusions, use:
+After merging, first update the source checkout, then run the deploy from the
+environment directory:
 
 ```sh
+# Update reviewed source explicitly. deploy-safe never changes Git branches.
+cd ~/git/rummy
+git switch main
+git pull --ff-only
+
+cd ~/rummy/qa
 sh scripts/deploy-safe.sh
 ```
 
-This builds while the current service remains running, rechecks `ready` and locks new sign-ins/reconnects, then
-recreates the container without another build. Use only after announcing and
-waiting. This is an operator guard, not a replacement for coordination: a successful `ready` locks identification until restart or cancel. Manually running Docker restart,
-Compose down/up, or rebooting the VM bypasses it. No deployment can preserve games
-in memory through a server restart. The notice itself is in memory and clears
-when the server restarts.
+By default the script rsyncs `../../git/rummy` into the current environment,
+preserving `.env`, `.git`, `data` and `upload`. Use `--source DIR` for a different
+checkout, or `--no-sync` when the current directory is itself the checkout. It
+then builds while the current service remains running, rechecks `ready`, locks
+new sign-ins/reconnects, and recreates the container without another build.
+
+Announce before deploying with the short wrapper:
+
+```sh
+cd ~/rummy/qa
+sh scripts/announce-restart.sh 10 'QA update in ten minutes'
+sh scripts/deploy-safe.sh
+```
+
+The deployment refuses while the deadline, logged-in people or unfinished games
+make the instance unsafe. In an emergency, `sh scripts/deploy-safe.sh --force`
+bypasses those three checks and recreates immediately. It still requires a valid
+source, successful sync and successful image build. **Force disconnects users and
+permanently loses every in-memory game**, so it is not the normal production path.
+
+This is an operator guard, not a replacement for coordination: a successful
+`ready` locks identification until restart or cancel. Manually running Docker
+restart, Compose down/up, rebooting the VM, or using `--force` bypasses the safe
+drain. No deployment can preserve games in memory through a server restart. The
+notice itself is in memory and clears when the server restarts.
 
 For bare Node installs, set a private ADMIN_PORT and ADMIN_TOKEN_FILE per process;
 DICE_AUDIT_DIR enables persistence. Leaving ADMIN_PORT unset disables the admin API.
@@ -103,3 +128,4 @@ can hide local patterns; use room/variant filters as appropriate. Do not keep
 rerunning until a pass, suppress repeats or adjust production probabilities.
 No finite sample proves unpredictability or absence of longer periods. Production
 still uses crypto.randomInt(1,7), with no clock seeds, internet entropy or filters.
+

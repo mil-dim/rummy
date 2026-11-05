@@ -11,6 +11,10 @@ services:
       PUBLIC_ORIGINS: "${PUBLIC_ORIGINS:-}"
       ADMIN_PORT: 9090
       DICE_AUDIT_DIR: /data/dice
+      SCORE_DB_PATH: /data/tabletop.sqlite
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       TRUST_PROXY: "${TRUST_PROXY:-0}"
     volumes:
       - runtime-data:/data

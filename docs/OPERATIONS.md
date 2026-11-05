@@ -82,6 +82,56 @@ notice itself is in memory and clears when the server restarts.
 For bare Node installs, set a private ADMIN_PORT and ADMIN_TOKEN_FILE per process;
 DICE_AUDIT_DIR enables persistence. Leaving ADMIN_PORT unset disables the admin API.
 
+## Optional Google accounts and ratings
+
+The existing `/data` runtime volume stores `/data/tabletop.sqlite` as well as the
+dice audit. Guest play remains available when authentication is not configured.
+For each public environment, create a Google OAuth **Web application** client and
+register its exact redirect URI, for example:
+
+```text
+https://qa.milenid.com/auth/google/callback
+https://games.milenid.com/auth/google/callback
+```
+
+Google may use one client with both redirect URIs or separate QA/production
+clients. Set these only in each deployment's uncommitted `.env`:
+
+```sh
+PUBLIC_BASE_URL=https://qa.milenid.com
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...
+```
+
+`PUBLIC_BASE_URL` must exactly match the browser origin and must use HTTPS in
+public deployments. Caddy needs no special path: its existing reverse proxy sends
+the callback to the application. The application stores Google subject, verified
+email, display name and optional avatar URL. It never receives or stores the
+Google password. Login cookies are opaque, HttpOnly, SameSite=Lax, Secure on HTTPS,
+and expire after 30 days. Google OAuth access tokens are not persisted.
+
+New signed profiles are unapproved and can still play casually. Review and approve
+only people you recognize using the loopback-only operator API:
+
+```sh
+docker compose exec -T tabletop node scripts/admin.mjs accounts
+docker compose exec -T tabletop node scripts/admin.mjs approve ACCOUNT_ID
+docker compose exec -T tabletop node scripts/admin.mjs unapprove ACCOUNT_ID
+```
+
+Approval is not exposed through Caddy or the public web application. Rated matches
+require distinct approved accounts for all seated players and lock the roster at
+match start. Results are written once after the full match finishes; unfinished
+in-memory matches lost during a restart do not affect ratings. The first ten rated
+matches use a deliberately small K-factor to limit rating transfer from new
+accounts. Ratings are separate for Rummy, normal Backgammon and the three-variant
+rotation.
+
+Back up the Compose runtime-data volume. In particular, copy the SQLite database
+only with the application stopped or use SQLite's backup tooling; copying only the
+main file while WAL writes are active can produce an incomplete backup. Never run
+`docker compose down -v` unless both rating history and dice history may be erased.
+
 ## Dice audit
 
 Every **accepted physical Backgammon roll** across all tables is appended to a

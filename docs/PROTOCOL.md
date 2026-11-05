@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **10**
+Protocol version: **11**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -14,11 +14,39 @@ whether a move is legal.
 - `invitePlayer { playerId }`
 - `respondInvitation { id, accept }`
 - `leaveRoom {}`: permanently remove the authenticated player from their seat; no target player ID is accepted.
-- `startGame { sprintCount?, roundCount?, variantMode? }`
+- `startGame { sprintCount?, roundCount?, variantMode?, rated? }`
 - `action { ... }`
 
 Every client event uses a Socket.IO acknowledgement shaped as either
 `{ ok: true }` or `{ ok: false, error }`.
+
+## Optional accounts and ratings (protocol 11)
+
+Guest identity and play remain unchanged. Google OAuth is optional and uses an
+HttpOnly, SameSite=Lax session cookie. Public player views expose only
+`account: {signedIn,approved,displayName}` or `null`; email, provider subject,
+OAuth tokens and authentication-session tokens are never sent through the game
+protocol. The application stores no Google password and delegates account
+recovery and MFA to Google.
+
+`startGame {...,rated:true}` is accepted only for a new match when every seated
+player has a distinct, administrator-approved signed account. Otherwise the
+request is rejected without creating a match. Guests and unapproved accounts can
+always play casual matches. The rated roster and match ID are locked server-side
+at match start and are not exposed in room state.
+
+Rating is applied once, only when the complete match finishes. Categories are
+`rummy`, `backgammon-normal` and `backgammon-rotate`. Multiplayer Rummy compares
+each pair from the final cumulative standings and divides K across opponents so
+the update remains zero-sum. Any pair containing an account with fewer than ten
+rated matches uses K=8; established pairs use K=24. A unique database match ID
+prevents duplicate application. `match.rated` and, after completion,
+`match.ratingChanges` are public room fields.
+
+HTTP `GET /api/account` reports whether Google login is configured and the
+caller's own public account. `GET /api/scoreboard` returns approved ratings and
+recent public results. `/auth/google`, `/auth/google/callback` and
+`POST /auth/logout` implement login/logout; there is no public approval action.
 
 The server emits:
 
@@ -275,7 +303,7 @@ recipient. Starting/deleting a room clears its outstanding invitations. An
 invitation never bypasses normal join authorization and contains no private game
 state.
 
-Lobby room entries add `currentGame` with public number/total/sprint and, for
-Backgammon, variant/round information. This lets the lobby name the game currently
+Lobby room entries add `currentGame` with public number/total/sprint/rated status and,
+for Backgammon, variant/round information. This lets the lobby name the game currently
 in progress without revealing cards or legal moves.
 

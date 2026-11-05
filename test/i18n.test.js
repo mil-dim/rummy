@@ -47,3 +47,8 @@ test('watcher controls and read-only notice translate into Bulgarian',()=>{
  assert.equal(translateText('Cards remaining','bg'),'Останали карти');
 });
 
+test('optional account and rating labels have Bulgarian translations',()=>{
+ for(const [english,bg] of [['Ratings','Рейтинг'],['Sign in with Google','Вход с Google'],['Rated match','Мач с рейтинг'],['Number of games','Брой партии']])assert.equal(translateText(english,'bg'),bg);
+ assert.equal(translateControl('Disconnect Google','bg'),'Изключи Google');
+});
+

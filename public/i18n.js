@@ -31,7 +31,7 @@ const bg = {
   'Concede Mars — 2 points':'Предай се с марс — 2 точки',
   'Accept concession':'Приеми предаването', 'Decline':'Откажи', 'Cancel offer':'Отмени предложението',
   'Watch':'Гледай', 'Resume watching':'Продължи наблюдението', 'Stop watching':'Спри наблюдението', 'Later':'По-късно',
-  'Change name':'Промени името', 'Sign out':'Изход', 'Save name':'Запази името',
+  'Change name':'Промени името', 'Sign out':'Изход', 'Save name':'Запази името', 'Disconnect Google':'Изключи Google',
   'Invite':'Покани', 'Accept':'Приеми',
   'Roll': 'Хвърли заровете',
   'Roll to start': 'Хвърли за начало'
@@ -73,6 +73,12 @@ const labels = {
  'Maintenance in progress. Try again after the update.':'Извършва се поддръжка. Опитайте след обновяването.',
 
  'People':'Хора', 'No one here yet.':'Все още няма никого.', 'In lobby':'В лобито', 'Playing':'Играе', 'Watching':'Наблюдава', 'Disconnected':'Временно изключен', 'At table':'На маса',
+ 'Ratings':'Рейтинг', 'Rating':'Рейтинг', 'Games':'Партии', 'Sign in with Google':'Вход с Google', 'Rated':'С рейтинг', 'Approval pending':'Изчаква одобрение',
+ 'Rated match':'Мач с рейтинг', 'Sign-in is optional. Only approved signed players can choose rated matches.':'Входът не е задължителен. Само одобрени влезли играчи могат да изберат мач с рейтинг.',
+ 'Optional: results will update the public rating.':'По желание: резултатите ще променят публичния рейтинг.',
+ 'Rated play requires every player to sign in and receive approval.':'За мач с рейтинг всеки играч трябва да влезе и да бъде одобрен.',
+ 'No rated matches yet.':'Все още няма мачове с рейтинг.', 'Ratings are temporarily unavailable.':'Рейтингът временно не е достъпен.',
+ 'Bulgarian Rummy':'Българско реми', 'Backgammon rotation':'Редувана табла',
  'Game invitation':'Покана за игра', 'invited you to':'ви покани на', 'Invitation sent.':'Поканата е изпратена.', 'Current game':'Текуща игра',
  'You are at another table. You can use this invitation after you leave it.':'Вече сте на друга маса. Можете да използвате поканата, след като я напуснете.',
  'Planned restart in':'Планирано рестартиране след', 'Maintenance is due. Waiting for the operator.':'Времето за поддръжка настъпи. Изчаква се операторът.',

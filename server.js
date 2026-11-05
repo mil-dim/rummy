@@ -1,6 +1,8 @@
 import {suggestName,uniqueName} from "./public/room-names.js";
 import {createDiceAudit} from "./lib/dice-audit.js";
 import {startAdmin} from "./lib/admin.js";
+import {createScoreStore} from "./lib/score-store.js";
+import {installGoogleAuth} from "./lib/google-auth.js";
 import express from "express";
 import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -40,7 +42,7 @@ const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
-const PROTOCOL_VERSION = 10;
+const PROTOCOL_VERSION = 11;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -53,6 +55,7 @@ const sessions = new Map();
 const connectionAttempts = new Map();
 let maintenance=null;
 const audit=createDiceAudit(process.env.DICE_AUDIT_DIR,buildInfo.environment);
+const scoreStore=createScoreStore(process.env.SCORE_DB_PATH||':memory:');
 const app = express();
 const server = http.createServer(app);
 
@@ -106,6 +109,7 @@ const io = new Server(server, {
 });
 
 app.disable("x-powered-by");
+app.use(express.json({limit:'4kb'}));
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -120,6 +124,8 @@ app.use((_req, res, next) => {
   }
   next();
 });
+const googleAuth=installGoogleAuth({app,store:scoreStore,baseUrl:process.env.PUBLIC_BASE_URL,
+ clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,allowRequest:sameOrigin});
 app.get(["/", "/index.html"], (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.type("html").send(indexHtml);
@@ -157,6 +163,7 @@ function lobby() {
     currentGame: room.game ? {
       number: room.game.gameNumber,
       totalGames: room.match?.totalGames || null,
+      rated: Boolean(room.match?.rated),
       sprint: Boolean(room.game.sprint),
       variant: room.game.variant || null,
       variantMode: room.game.kind === "backgammon" ? room.match?.variantMode || "rotate" : null,
@@ -201,15 +208,18 @@ function adminStatus(){
  return {build:buildInfo,maintenance,onlineUsers:users.filter(p=>p.connected).length,people:users,
   rooms:lobby(),unfinishedGames:unfinished.map(r=>({id:r.id,name:r.name,gameType:r.gameType})),
   safeToDeploy:Boolean(maintenance&&Date.now()>=maintenance.deadline&&users.every(p=>!p.connected)&&!unfinished.length),
-  memory:process.memoryUsage(),cpuMicros:process.cpuUsage(),uptimeSeconds:process.uptime(),audit:audit.status()};
+  memory:process.memoryUsage(),cpuMicros:process.cpuUsage(),uptimeSeconds:process.uptime(),audit:audit.status(),scores:scoreStore.status()};
 }
 const admin=startAdmin({port:process.env.ADMIN_PORT,tokenPath:process.env.ADMIN_TOKEN_FILE,status:adminStatus,
  announce:input=>{if(!Number.isFinite(input.minutes)||input.minutes<0||input.minutes>1440)throw Error("Choose 0 to 1440 minutes");maintenance={deadline:Date.now()+input.minutes*60000,message:cleanText(input.message,"Planned server restart",180)};io.emit("maintenance",maintenance)},
  lock:()=>{maintenance.locked=true;io.emit("maintenance",maintenance)},
- cancel:()=>{maintenance=null;io.emit("maintenance",null)}});
+ cancel:()=>{maintenance=null;io.emit("maintenance",null)},
+ listAccounts:()=>scoreStore.listAccounts(),
+ approveAccount:(id,approved)=>{const account=scoreStore.setApproved(id,approved);for(const player of sessions.values())if(player.account?.id===id)player.account=account;for(const room of rooms.values())if([...room.players,...(room.watchers||[])].some(player=>player.account?.id===id))emitRoom(room,false);emitPeople();return account}});
 
 function playerView(player) {
-  return { id: player.id, name: player.name, connected: Boolean(player.socketId) };
+  return { id: player.id, name: player.name, connected: Boolean(player.socketId),
+    account:player.account?{signedIn:true,approved:Boolean(player.account.approved),displayName:player.account.displayName}:null };
 }
 
 function findPlayerRoom(playerId) {
@@ -290,6 +300,27 @@ function recordRummyResult(room) {
 function recordResult(room) {
   recordRummyResult(room);
   recordBackgammonResult(room);
+  if(room.match?.finished&&room.game?.winner&&room.game.resultRecorded&&room.match.rated&&room.ratingContext&&!room.ratingContext.recorded){
+   try{
+    const result=scoreStore.recordMatch({id:room.ratingContext.id,roomId:room.id,category:room.ratingContext.category,
+     participants:room.ratingContext.players.map(item=>({accountId:item.accountId,score:Number(room.match.cumulative[item.playerId]||0)}))});
+    room.ratingContext.recorded=true;
+    room.match.ratingChanges=result.changes.map(change=>{const item=room.ratingContext.players.find(player=>player.accountId===change.accountId);return {...change,playerId:item.playerId}});
+   }catch(error){room.match.ratingError='The match finished, but its rating could not be recorded.';console.error('Rating record failed:',error.message)}
+  }
+}
+
+function enableRatedMatch(room,rated,category){
+ room.match.rated=Boolean(rated);room.ratingContext=null;if(!rated)return;
+ const players=room.players.map(player=>({playerId:player.id,account:player.account&&scoreStore.getAccount(player.account.id)}));
+ if(players.some(item=>!item.account?.approved))throw Error('Every player must be signed in and approved for a rated match.');
+ if(new Set(players.map(item=>item.account.id)).size!==players.length)throw Error('A rated match requires a different account for every player.');
+ room.ratingContext={id:randomUUID(),category,recorded:false,players:players.map(item=>({playerId:item.playerId,accountId:item.account.id}))};
+}
+function validateRatedMatch(room,rated){
+ if(!rated)return;const accounts=room.players.map(player=>player.account&&scoreStore.getAccount(player.account.id));
+ if(accounts.some(account=>!account?.approved))throw Error('Every player must be signed in and approved for a rated match.');
+ if(new Set(accounts.map(account=>account.id)).size!==accounts.length)throw Error('A rated match requires a different account for every player.');
 }
 
 function makeRoomId() {
@@ -314,6 +345,7 @@ io.on("connection", socket => {
     return;
   }
 
+  socket.data.account=googleAuth.accountFromHeader(socket.handshake.headers.cookie);
   const eventRate = { startedAt: Date.now(), count: 0 };
   socket.use((_packet, next) => {
     const now = Date.now();
@@ -361,6 +393,7 @@ io.on("connection", socket => {
       }
 
       player.name = cleanText(payload.name, player.name, 24);
+      player.account=socket.data.account||null;
       player.socketId = socket.id;
       player.lastSeen = Date.now();
       socket.data.player = player;
@@ -573,11 +606,13 @@ io.on("connection", socket => {
       clearRoomInvitations(room.id);
       let starter = room.game?.winner || null;
       if (room.gameType === "backgammon" && (!room.match || room.match.finished)) {
+        validateRatedMatch(room,payload?.rated===true);
         startBackgammonMatch(room, payload?.roundCount ?? 3, payload?.variantMode ?? "rotate");
+        enableRatedMatch(room,payload?.rated===true,`backgammon-${room.match.variantMode}`);
         starter = null;
       }
       if (room.gameType === "rummy") {
-        if (!room.match || room.match.finished) startRummyMatch(room, payload?.sprintCount);
+        if (!room.match || room.match.finished){validateRatedMatch(room,payload?.rated===true);startRummyMatch(room, payload?.sprintCount);enableRatedMatch(room,payload?.rated===true,'rummy')}
         if (room.match.finished) throw Error("Start a new match first.");
         if (room.match.completedGames >= room.match.totalGames) throw Error("This match has finished.");
       }

@@ -86,3 +86,9 @@ show activity and reserved table; default table names are funny and unique.
 See [operator instructions](docs/OPERATIONS.md) for private maintenance announcements,
 drain/deployment checks, persistent accepted-roll auditing and randomness diagnostics.
 The admin port must never be published or proxied.
+
+From a QA/prod environment directory, `sh scripts/announce-restart.sh 10` posts
+the warning and `sh scripts/deploy-safe.sh` syncs the reviewed checkout, builds,
+checks that the drain is safe, and recreates the container. `--force` is an
+emergency override that disconnects users and loses in-memory games.
+

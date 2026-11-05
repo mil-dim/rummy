@@ -47,8 +47,9 @@
     <menu><button value="cancel" class="ghost">Cancel</button><button id="matchGo" value="default">Start match</button></menu>
   </form></dialog>
   <dialog id="bgMatchSetup"><form method="dialog"><h2>Backgammon match</h2>
-    <label>Number of rounds <input id="bgGameCount" type="number" value="3" min="1" max="100" required></label>
-    <p>One round: normal backgammon → Gulbara → Tapa.</p>
+    <label>Match format <select id="bgVariantMode"><option value="normal">Normal Backgammon only</option><option value="rotate">Rotate: Normal → Gulbara → Tapa</option></select></label>
+    <label><span id="bgCountLabel">Number of games</span> <input id="bgGameCount" type="number" value="3" min="1" max="100" required></label>
+    <p id="bgFormatHint">Every game uses Normal Backgammon.</p>
     <p>Win: 1 point. Mars (opponent has borne off none): 2 points.</p>
     <menu><button value="cancel" class="ghost">Cancel</button><button id="bgMatchGo">Start match</button></menu>
   </form></dialog>
@@ -67,8 +68,8 @@
         <li>Only an opened player may add to table melds. When stock ends, turn the discard pile over without shuffling; the earliest discard is drawn first.</li>
         <li>Winner receives opponents' remaining points divided by 10, rounded to the nearest whole point (5 rounds up; minimum 1). An unopened opponent counts 100 raw points. Sprint games double the rounded match points. Each loser loses those points and the winner gains their sum; standings always total zero.</li>
       </ul>
-      <h3>Three-game rounds: normal → Gulbara → Tapa</h3>
-      <p>Choose 1–100 rounds (three games per round). The previous winner starts each next game, including a change of variant. Every win earns 1 point, or 2 for Mars; the totals carry across variants. Concede 1 point or concede Mars with a confirmation; the opponent must accept. A concession finishes this game, not the match.</p>
+      <h3>Match formats</h3>
+      <p>Choose Normal Backgammon only, or rotating three-game rounds: normal → Gulbara → Tapa. The previous winner starts each next game, including a change of variant. Every win earns 1 point, or 2 for Mars; totals carry through the match. Concede 1 point or concede Mars with a confirmation; the opponent must accept. A concession finishes this game, not the match.</p>
       <h3>Gulbara</h3><p>All 15 checkers start together on diagonally opposite starting points. Both colors move in the same direction. A single opposing checker blocks a point; no hitting. Bearing off uses the same home-board and oversized-die rules as normal backgammon. Each player's first three regular rolls use ordinary doubles. From their fourth roll, a double plays four moves of that value and then four of each higher value up to six (3:3 means four 3s, four 4s, four 5s, four 6s). If the roller has made at least one move in the sequence but gets blocked, the opponent inherits the remaining moves once. If the roller cannot start, there is no inheritance. If the recipient is blocked, the rest is abandoned. After this, the opponent takes their own normal roll. There is no bonus roll. Undo is available until the sequence finishes or transfers; transferred moves can be undone until they finish or the recipient rolls again.</p>
       <h3>Tapa</h3><p>All 15 checkers start together at opposite ends and move in opposite directions. Landing on one opposing checker pins it instead of hitting it. A pinned checker cannot move until every covering checker leaves. Two or more opposing checkers block a point. Pinning the opponent's last checker on their starting point ends the game immediately with Mars. Bearing off uses normal home-board and oversized-die rules.</p>
       <h3>Backgammon</h3><p>Choose the number of rounds before the match. In the first game each player rolls one die; ties are rerolled. The higher roller starts and rolls both dice again. Later games start with the previous winner. Use both dice whenever possible, or the higher die if only one can be used. Doubles give four moves; play as many as legally possible. Hit checkers wait on the center bar and must re-enter first. Borne-off checkers go outside the board. Undo moves one at a time before the final dice move: one move on normal rolls, up to three on doubles. The final move commits the turn. If blocked early, undo remains available until the opponent rolls. Blocked rolls stay visible until the next roll. A win earns 1 point, or 2 for Mars when the opponent has borne off none; forfeits earn 1. Points accumulate across the chosen rounds.</p>

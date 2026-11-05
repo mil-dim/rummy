@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **9**
+Protocol version: **10**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -14,7 +14,7 @@ whether a move is legal.
 - `invitePlayer { playerId }`
 - `respondInvitation { id, accept }`
 - `leaveRoom {}`: permanently remove the authenticated player from their seat; no target player ID is accepted.
-- `startGame { sprintCount?, roundCount? }`
+- `startGame { sprintCount?, roundCount?, variantMode? }`
 - `action { ... }`
 
 Every client event uses a Socket.IO acknowledgement shaped as either
@@ -89,8 +89,10 @@ is no 100-point elimination rule.
 
 ## Backgammon
 
-Choose roundCount (integer 1–100, default 3) when starting a new match. A finished
-match resets cumulative scores; otherwise startGame advances to the next game.
+Choose `variantMode: normal|rotate` and `roundCount` (integer 1–100, default 3)
+when starting a new match. In normal mode the count is the number of games; in
+rotate mode it is the number of three-game rounds. A finished match resets
+cumulative scores; otherwise startGame advances to the next game.
 In the first game, each player may submit `{ type: "roll" }` once to roll one die.
 Ties reset both opening rolls; openingPrevious preserves the tie for display.
 The higher roller then rolls two fresh dice. Subsequent games start with the
@@ -168,11 +170,13 @@ clear selected/staged cards, or change player/room names. The rules dialog start
 in the selected language. Other status/help text is not fully localized yet.
 
 
-## Three-variant Backgammon (protocol 6)
+## Backgammon match formats (protocol 10)
 
-`startGame { roundCount }` accepts 1..100 rounds; default 3. Each round is
-normal → gulbara → tapa. `match.roundCount` and `totalGames = roundCount * 3`
-are fixed for the match. Each next game uses the previous winner as starter;
+`startGame { roundCount, variantMode }` accepts 1..100 games/rounds; default 3.
+`variantMode: normal` plays only normal Backgammon and treats the count as games.
+`variantMode: rotate` plays normal → gulbara → tapa and treats the count as
+three-game rounds. The match exposes `variantMode`, `gameCount` or `roundCount`,
+and the derived `totalGames`. Each next game uses the previous winner as starter;
 a new match repeats the opening dice contest. `game.variant` selects the rules.
 
 `rollsBySide` counts regular rolls per side, excluding the opening contest and

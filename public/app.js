@@ -137,8 +137,14 @@ function updateStartButton(){
  else if(room.match?.finished)button.textContent="New match";
  else button.textContent="Next game";
 }
+function renderBackgammonFormat(){
+ const rotating=$("#bgVariantMode").value==="rotate";
+ $("#bgCountLabel").textContent=translateText(rotating?"Number of rounds":"Number of games",uiLanguage);
+ $("#bgFormatHint").textContent=translateText(rotating?"One round: Normal Backgammon → Gulbara → Tapa.":"Every game uses Normal Backgammon.",uiLanguage);
+}
+$("#bgVariantMode").onchange=renderBackgammonFormat;
 $("#start").onclick=()=>{
- if(room.gameType==="backgammon"&&(!room.match||room.match.finished)){$("#bgMatchSetup").showModal();return}
+ if(room.gameType==="backgammon"&&(!room.match||room.match.finished)){renderBackgammonFormat();$("#bgMatchSetup").showModal();return}
  if(room.gameType==="rummy"&&(!room.match||room.match.finished)){$("#matchSetup").showModal();return}
  socket.emit("startGame",{},response=>!response.ok&&toast(response.error));
 };
@@ -146,12 +152,12 @@ $("#matchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{sp
 
 $("#bgMatchGo").onclick=event=>{
  event.preventDefault();const input=$("#bgGameCount");if(!input.reportValidity())return;
- socket.emit("startGame",{roundCount:Number(input.value)},response=>{if(response.ok)$("#bgMatchSetup").close();else toast(response.error)});
+ socket.emit("startGame",{roundCount:Number(input.value),variantMode:$("#bgVariantMode").value},response=>{if(response.ok)$("#bgMatchSetup").close();else toast(response.error)});
 };
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>9){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>10){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -365,7 +371,8 @@ function renderBackgammon(game){
  const barSide=side=>`<button class="bar-zone side-${side}" data-bar="${side}" aria-label="${side===0?"White":"Red"} hit checkers: ${Number(game.bar[side])}"><span>${side===0?"White":"Red"}</span><div class="bar-checkers">${Array.from({length:Math.min(game.bar[side],5)},()=>`<i class="checker side-${side}"></i>`).join("")}</div><b>${Number(game.bar[side])}</b></button>`;
  const offSide=side=>`<div class="off-group side-${side}" aria-label="${side===0?"White":"Red"} borne off: ${Number(game.borneOff[side])}"><span>${side===0?"White":"Red"}</span><div class="off-checkers">${Array.from({length:game.borneOff[side]},()=>`<i class="off-checker side-${side}"></i>`).join("")}</div><b>${Number(game.borneOff[side])}</b></div>`;
  const opening=game.phase==="opening";
- const progress=`${variantName(game.variant)} · Round ${Math.ceil(game.gameNumber/3)} of ${room.match?.roundCount||Math.ceil((room.match?.totalGames||3)/3)} · Game ${game.gameNumber} of ${room.match?.totalGames||3}`;
+ const rotating=room.match?.variantMode!=="normal";
+ const progress=`${variantName(game.variant)}${rotating?` · Round ${Math.ceil(game.gameNumber/3)} of ${room.match?.roundCount||Math.ceil((room.match?.totalGames||3)/3)}`:""} · Game ${game.gameNumber} of ${room.match?.totalGames||3}`;
  const status=game.winner?`${playerName(game.winner)} wins${game.scores?.mars?" — Mars!":"!"}`:opening?"Roll to decide who starts":`${turn?"Your move":playerName(game.players[game.turn])+"'s move"}`;
  const openingHtml=game.openingRolls.some(die=>die!==null)||opening?`<section class="opening-rolls"><p>${opening&&game.openingPrevious?"Opening tie — both players roll again.":opening?"Each player rolls one die. Higher roll starts, then rolls both dice again.":"Opening rolls"}</p>${game.players.map((id,side)=>`<div><span>${playerName(id)}</span>${game.openingRolls[side]!==null?dieHtml(game.openingRolls[side]):"<span>Waiting…</span>"}</div>`).join("")}${opening&&game.openingPrevious?`<small>Previous tie: ${game.openingPrevious.join(" : ")}</small>`:""}</section>`:"";
  const legal=game.legalMoves||[];
@@ -408,6 +415,7 @@ $("#uiLanguage").onchange=()=>{
  uiLanguage=$("#uiLanguage").value==="bg"?"bg":"en";
  localStorage.uiLanguage=uiLanguage;renderMaintenance();
  localizeControls();
+ renderBackgammonFormat();
  document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 };
 localizeControls();

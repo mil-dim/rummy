@@ -54,7 +54,7 @@ $("#signOut").onclick=()=>{
  if(confirm(translateText(warning,uiLanguage)))socket.emit("leaveRoom",{},response=>{if(response.ok)logout();else toast(response.error)});
 };
 function gameTypeName(type){return type==="rummy"?"Bulgarian Rummy (Joker)":"Backgammon"}
-function canInvite(person){return Boolean(room?.role==="player"&&!room.game&&room.players.length<room.maxPlayers&&!maintenance&&person.id!==me?.id&&person.connected&&!person.roomId)}
+function canInvite(person){return Boolean(room?.role==="player"&&!room.game&&room.players.length<room.maxPlayers&&!maintenance&&person.id!==me?.id&&person.connected&&person.roomId!==room.id)}
 function renderPeople(){
  $("#people").innerHTML=lobbyPeople.map(person=>`<p><span><span data-no-translate>${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</span>${canInvite(person)?` <button class="small ghost" data-invite="${esc(person.id)}">Invite</button>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();
 }
@@ -63,7 +63,9 @@ document.addEventListener("click",event=>{const id=event.target.closest?.("[data
 
 function renderInvitation(){
  const panel=$("#invitationNotice");panel.hidden=!invitation;if(!invitation)return;
- $("#invitationFrom").textContent=invitation.fromName;$("#invitationRoom").textContent=invitation.roomName;$("#invitationGame").textContent=gameTypeName(invitation.gameType);localizeControls(panel);
+ $("#invitationFrom").textContent=invitation.fromName;$("#invitationRoom").textContent=invitation.roomName;$("#invitationGame").textContent=gameTypeName(invitation.gameType);
+ $("#invitationAccept").hidden=!invitation.actionable;$("#invitationDecline").textContent=invitation.actionable?"Decline":"Later";
+ $("#invitationHint").textContent=invitation.actionable?"":"You are at another table. You can use this invitation after you leave it.";localizeControls(panel);
 }
 socket.on("gameInvitation",value=>{invitation=value;renderInvitation()});
 function answerInvitation(accept){
@@ -71,7 +73,7 @@ function answerInvitation(accept){
  socket.emit("respondInvitation",{id,accept},response=>{if(!response?.ok){toast(response?.error);return}invitation=null;renderInvitation();if(response.joined)setLobbyView(false)});
 }
 $("#invitationAccept").onclick=()=>answerInvitation(true);
-$("#invitationDecline").onclick=()=>answerInvitation(false);
+$("#invitationDecline").onclick=()=>{if(invitation?.actionable)answerInvitation(false);else $("#invitationNotice").hidden=true};
 function renderMaintenance(){
  $("#maintenanceNotice").hidden=!maintenance;if(!maintenance)return;
  const seconds=Math.max(0,Math.ceil((maintenance.deadline-Date.now())/1000));

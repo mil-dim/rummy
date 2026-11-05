@@ -20,8 +20,13 @@ test('invitations persist, revalidate, seat the recipient, and expose current ga
  const hostRoom=next(host,'room');const created=await send(host,'createRoom',{name:'Invitation table',gameType:'rummy'});assert.equal(created.ok,true);
  assert.equal((await hostRoom).maxPlayers,2,'server fallback must match the two-player browser default');
 
- const firstInvite=next(guest,'gameInvitation',Boolean);assert.equal((await send(host,'invitePlayer',{playerId:guest.identity.player.id})).ok,true);
- const declined=await firstInvite;assert.equal(declined.fromName,'Host');assert.equal(declined.gameType,'rummy');
+ const busyRoom=next(guest,'room');assert.equal((await send(guest,'createRoom',{name:'Busy table',gameType:'rummy'})).ok,true);await busyRoom;
+ const busyInvite=next(guest,'gameInvitation',Boolean);assert.equal((await send(host,'invitePlayer',{playerId:guest.identity.player.id})).ok,true);
+ const informational=await busyInvite;assert.equal(informational.actionable,false,'busy invitations must be informational');
+ const actionableInvite=next(guest,'gameInvitation',value=>value?.actionable===true);assert.equal((await send(guest,'leaveRoom')).ok,true);
+ const available=await actionableInvite;assert.equal(available.id,informational.id,'leaving must activate the same invitation');
+
+ const declined=available;assert.equal(declined.fromName,'Host');assert.equal(declined.gameType,'rummy');
  assert.deepEqual(await send(guest,'respondInvitation',{id:declined.id,accept:false}),{ok:true,joined:false});
 
  const secondInvite=next(guest,'gameInvitation',Boolean);await send(host,'invitePlayer',{playerId:guest.identity.player.id});const pending=await secondInvite;

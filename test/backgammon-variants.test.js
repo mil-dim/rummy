@@ -27,6 +27,19 @@ test('rounds contain normal, Gulbara, Tapa and carry points until the last game'
  assert.throws(()=>newBackgammon(players,{variant:'invented'}));
 });
 
+test('normal-only matches keep every game on standard Backgammon',()=>{
+ const room={players};startBackgammonMatch(room,4,'normal');
+ assert.equal(room.match.variantMode,'normal');assert.equal(room.match.roundCount,null);
+ assert.equal(room.match.gameCount,4);assert.equal(room.match.totalGames,4);
+ assert.deepEqual([1,2,3,4].map(number=>backgammonVariant(number,room.match.variantMode)),['normal','normal','normal','normal']);
+ for(let n=1;n<=4;n++){
+  room.game=newBackgammon(players,{gameNumber:n,variant:backgammonVariant(n,'normal'),starter:n===1?null:'r'});
+  room.game.winner='r';room.game.scores={awarded:1};recordBackgammonResult(room);
+  assert.equal(room.match.finished,n===4);
+ }
+ assert.throws(()=>startBackgammonMatch({players},2,'invented'));
+});
+
 test('variant setups and perspective coordinates retain authoritative point IDs',()=>{
  for(const variant of ['normal','gulbara','tapa']){
   const g=newBackgammon(players,{variant});

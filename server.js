@@ -40,7 +40,7 @@ const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
-const PROTOCOL_VERSION = 9;
+const PROTOCOL_VERSION = 10;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -159,7 +159,8 @@ function lobby() {
       totalGames: room.match?.totalGames || null,
       sprint: Boolean(room.game.sprint),
       variant: room.game.variant || null,
-      round: room.game.kind === "backgammon" ? Math.ceil(room.game.gameNumber / 3) : null,
+      variantMode: room.game.kind === "backgammon" ? room.match?.variantMode || "rotate" : null,
+      round: room.game.kind === "backgammon" && room.match?.variantMode !== "normal" ? Math.ceil(room.game.gameNumber / 3) : null,
       roundCount: room.game.kind === "backgammon" ? room.match?.roundCount || null : null
     } : null,
     playerList: room.players.map(playerView),
@@ -572,7 +573,7 @@ io.on("connection", socket => {
       clearRoomInvitations(room.id);
       let starter = room.game?.winner || null;
       if (room.gameType === "backgammon" && (!room.match || room.match.finished)) {
-        startBackgammonMatch(room, payload?.roundCount ?? 3);
+        startBackgammonMatch(room, payload?.roundCount ?? 3, payload?.variantMode ?? "rotate");
         starter = null;
       }
       if (room.gameType === "rummy") {
@@ -583,7 +584,8 @@ io.on("connection", socket => {
       room.gameNumber += 1;
       room.game = room.gameType === "rummy"
         ? newRummy(room.players, room.gameNumber)
-        : newBackgammon(room.players, { gameNumber: room.gameNumber, starter, variant: backgammonVariant(room.gameNumber) });
+        : newBackgammon(room.players, { gameNumber: room.gameNumber, starter,
+          variant: backgammonVariant(room.gameNumber, room.match?.variantMode) });
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {

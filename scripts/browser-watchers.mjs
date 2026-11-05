@@ -34,7 +34,7 @@ try{
  a.once('dialog',dialog=>dialog.accept());await a.locator('#leaveGame').click();await w.locator('.remaining-hands').waitFor();
  assert.ok(await w.locator('.remaining-hands .playing-card').count()>0);assert.equal(await w.locator('.remaining-hands .playing-card:not(:disabled)').count(),0);
  b.once('dialog',dialog=>dialog.accept());await b.locator('#leaveGame').click();await w.locator('#lobby:not([hidden])').waitFor();assert.equal(await w.locator('#room').isVisible(),false);
- await a.locator('#newRoom').click();await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();await a.locator('#bgGameCount').fill('1');await a.locator('#bgMatchGo').click();await w.locator('[data-watch]').click();
+ await a.locator('#newRoom').click();await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();await a.locator('#bgVariantMode').selectOption('rotate');await a.locator('#bgGameCount').fill('1');await a.locator('#bgMatchGo').click();await w.locator('[data-watch]').click();
  for(const variant of ['Normal backgammon','Gulbara','Tapa']){
   await w.locator('.bg-progress').filter({hasText:variant}).waitFor();
   assert.equal(await w.locator('[data-point]').count(),24);assert.equal(await w.locator('[data-point]:not(:disabled)').count(),0);

@@ -91,7 +91,10 @@ const labels = {
 
  'Win by concession':'Победа след предаване',
  'Normal backgammon':'Обикновена табла', 'Gulbara':'Гюлбара', 'Tapa':'Тапа', 'You':'Вие',
- 'Number of rounds':'Брой кръгове', 'One round: normal backgammon → Gulbara → Tapa.':'Един кръг: обикновена табла → Гюлбара → Тапа.',
+ 'Match format':'Формат на мача', 'Normal Backgammon only':'Само обикновена табла', 'Rotate: Normal → Gulbara → Tapa':'Редуване: Обикновена → Гюлбара → Тапа',
+ 'Number of games':'Брой партии', 'Number of rounds':'Брой кръгове',
+ 'One round: Normal Backgammon → Gulbara → Tapa.':'Един кръг: Обикновена табла → Гюлбара → Тапа.',
+ 'Every game uses Normal Backgammon.':'Всяка партия е обикновена табла.',
  'offers to concede':'предлага да се предаде за', 'point(s).':'точки.',
  'Offer to concede this game for 1 point?':'Да предложите ли предаване на тази партия за 1 точка?',
  'Offer to concede this game for 2 points (Mars)?':'Да предложите ли предаване на тази партия за 2 точки (марс)?',

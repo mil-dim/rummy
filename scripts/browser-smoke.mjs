@@ -18,7 +18,7 @@ try{
  assert.equal(await a.locator('#leaveGame').innerText(),'Напусни играта');
  await a.locator('#uiLanguage').selectOption('en');assert.equal(await a.locator('#newRoom').innerText(),'New room');
  await a.locator('#uiLanguage').selectOption('bg');
- await a.locator('#newRoom').click();await a.locator('#createName').fill('Your hand');await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();await a.locator('#bgMatchGo').click();
+ await a.locator('#newRoom').click();await a.locator('#createName').fill('Your hand');await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();assert.equal(await a.locator('#bgVariantMode').inputValue(),'normal');assert.equal(await a.locator('#bgCountLabel').innerText(),'Брой партии');await a.locator('#bgVariantMode').selectOption('rotate');assert.equal(await a.locator('#bgCountLabel').innerText(),'Брой кръгове');await a.locator('#bgMatchGo').click();
  assert.equal(await a.locator('#roll').innerText(),'Хвърли за начало');
  assert.equal(await a.locator('#roomName').innerText(),'Your hand');
  assert.match(await a.locator('.board-hint').innerText(),/Обикновена табла/);

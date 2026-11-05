@@ -1,9 +1,11 @@
+import {suggestName} from "./room-names.js";
 import { boardView, variantName } from "./backgammon-view.js";
 import { translateInterface, translateText } from "./i18n.js";
 
 const socket=io(), $=selector=>document.querySelector(selector);
 let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
 function localizeControls(root=document){translateInterface(root,uiLanguage)}
+let maintenance=null;
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
@@ -26,7 +28,7 @@ function identified(response){
  if(!response?.ok){toast(response?.error);return}
  const hadRoom=Boolean(room||pendingRoom);
  localStorage.token=response.token;localStorage.name=response.player.name;me=response.player;
- $("#welcome").hidden=true;
+ $("#welcome").hidden=true;$("#profileActions").hidden=false;$("#currentName").textContent=me.name;
  if(!response.resumed){
    clearRoomState();setLobbyView(true);
    if(response.sessionReplaced&&hadRoom)toast("Your previous session expired. You are back in the lobby.");
@@ -34,14 +36,40 @@ function identified(response){
    $("#lobby").hidden=!browsingLobby;$("#room").hidden=browsingLobby||!room;
    if(pendingRoom){const next=pendingRoom;pendingRoom=null;showRoom(next)}
  }
+ socket.emit("setView",{view:browsingLobby?"lobby":"room"});
 }
 $("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{token:localStorage.token,name:$("#name").value},identified)};
+
+socket.on("identityChanged",player=>{me=player;localStorage.name=player.name;$("#currentName").textContent=player.name});
+$("#renameOpen").onclick=()=>{$("#renameInput").value=me.name;$("#renameDialog").showModal()};
+$("#renameSave").onclick=event=>{event.preventDefault();if(!$("#renameInput").reportValidity())return;socket.emit("rename",{name:$("#renameInput").value},response=>{if(response.ok)$("#renameDialog").close();else toast(response.error)})};
+socket.on("signedOut",()=>{
+ localStorage.removeItem("token");localStorage.removeItem("name");sessionStorage.removeItem("tabletopView");
+ me=null;clearRoomState();$("#welcome").hidden=false;$("#lobby").hidden=true;$("#room").hidden=true;$("#profileActions").hidden=true;$("#name").value="";
+});
+$("#signOut").onclick=()=>{
+ const logout=()=>socket.emit("signOut",{},response=>{if(!response.ok)toast(response.error)});
+ if(!room){logout();return}
+ const warning=room.role==="watcher"?"Stop watching and sign out?":room.game&&!room.game.winner?"Leave your table and sign out? An active game will be forfeited and the match will end after this hand.":"Leave this table and sign out?";
+ if(confirm(translateText(warning,uiLanguage)))socket.emit("leaveRoom",{},response=>{if(response.ok)logout();else toast(response.error)});
+};
+socket.on("people",people=>{
+ $("#people").innerHTML=people.map(person=>`<p><span data-no-translate>${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();
+});
+function renderMaintenance(){
+ $("#maintenanceNotice").hidden=!maintenance;if(!maintenance)return;
+ const seconds=Math.max(0,Math.ceil((maintenance.deadline-Date.now())/1000));
+ $("#maintenanceCountdown").textContent=seconds?translateText("Planned restart in",uiLanguage)+` ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}`:translateText("Maintenance is due. Waiting for the operator.",uiLanguage);
+ $("#maintenanceMessage").textContent=maintenance.message;
+}
+socket.on("maintenance",notice=>{maintenance=notice;renderMaintenance();renderLobby();if(room&&me)updateStartButton()});
+setInterval(renderMaintenance,1000);
 
 let lobbyRooms=[];
 function memberList(members){return members?.length?members.map(member=>`<span class="member-name">${member.connected?"●":"○"} <span data-no-translate>${esc(member.name)}</span></span>`).join(" "):"<span>None</span>"}
 function renderLobby(){
- $("#rooms").innerHTML=lobbyRooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}${item.variant?` · <span>${variantName(item.variant)}</span>`:""}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><p class="room-status"><span>${item.status==="finished"?"Finished":item.started?"In progress":"Waiting for players"}</span></p><p class="room-members"><strong>Players</strong>: ${memberList(item.playerList)}</p><p class="room-watchers"><strong>Watchers</strong>: ${memberList(item.watchers)}</p><div class="actions"><button data-join="${esc(item.id)}" ${item.started||room?"disabled":""}>${item.started?"In progress":"Join table"}</button><button data-watch="${esc(item.id)}" class="ghost" ${room?"disabled":""}>Watch</button></div></article>`).join("")||"<p>No open rooms yet.</p>";
- $("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room);
+ $("#rooms").innerHTML=lobbyRooms.map(item=>`<article class="roomCard"><p class="eyebrow">${esc(item.gameType)}${item.variant?` · <span>${variantName(item.variant)}</span>`:""}</p><h3>${esc(item.name)}</h3><p>${Number(item.players)}/${Number(item.maxPlayers)} players · ${esc(item.id)}</p><p class="room-status"><span>${item.status==="finished"?"Finished":item.started?"In progress":"Waiting for players"}</span></p><p class="room-members"><strong>Players</strong>: ${memberList(item.playerList)}</p><p class="room-watchers"><strong>Watchers</strong>: ${memberList(item.watchers)}</p><div class="actions"><button data-join="${esc(item.id)}" ${item.started||room||maintenance?"disabled":""}>${item.started?"In progress":"Join table"}</button><button data-watch="${esc(item.id)}" class="ghost" ${room?"disabled":""}>Watch</button></div></article>`).join("")||"<p>No open rooms yet.</p>";
+ $("#resumeArea").hidden=!room;$("#newRoom").disabled=Boolean(room||maintenance);
  const watching=room?.role==="watcher";
  $("#resumeGame").textContent=watching?"Resume watching":"Resume game";
  $("#leaveLobby").textContent=watching?"Stop watching":"Leave game";
@@ -54,12 +82,12 @@ document.addEventListener("click",event=>{
  const button=event.target.closest?.("[data-watch]");
  if(button&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("watchRoom",{id:button.dataset.watch},response=>{if(!response.ok){setLobbyView(true);toast(response.error)}})}
 });
-$("#newRoom").onclick=()=>$("#create").showModal();
+$("#newRoom").onclick=()=>{$("#createName").value=suggestName(lobbyRooms.map(r=>r.name),uiLanguage);$("#create").showModal()};
 $("#gameType").onchange=()=>{$("#maxPlayers").disabled=$("#gameType").value==="backgammon"};
-$("#createGo").onclick=event=>{event.preventDefault();socket.emit("createRoom",{name:$("#createName").value,gameType:$("#gameType").value,maxPlayers:$("#maxPlayers").value},response=>{if(response.ok){$("#create").close();setLobbyView(false)}else toast(response.error)})};
+$("#createGo").onclick=event=>{event.preventDefault();socket.emit("createRoom",{name:$("#createName").value,language:uiLanguage,gameType:$("#gameType").value,maxPlayers:$("#maxPlayers").value},response=>{if(response.ok){$("#create").close();setLobbyView(false)}else toast(response.error)})};
 
 function setLobbyView(value){
- browsingLobby=value;sessionStorage.setItem("tabletopView",value?"lobby":"room");
+ browsingLobby=value;if(me)socket.emit("setView",{view:value?"lobby":"room"});sessionStorage.setItem("tabletopView",value?"lobby":"room");
  $("#lobby").hidden=!value;$("#room").hidden=value;renderLobby();
 }
 $("#backLobby").onclick=()=>setLobbyView(true);
@@ -81,7 +109,7 @@ socket.on("roomLeft",()=>{
 function updateStartButton(){
  const button=$("#start");
  if(room.role==="watcher"||room.hostId!==me.id||room.game&&!room.game.winner){button.hidden=true;return}
- button.hidden=false;
+ button.hidden=false;button.disabled=Boolean(maintenance);
  if(!room.game)button.textContent="Start match";
  else if(room.match?.finished)button.textContent="New match";
  else button.textContent="Next game";
@@ -100,7 +128,7 @@ $("#bgMatchGo").onclick=event=>{
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>7){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>8){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -355,7 +383,7 @@ function renderBackgammon(game){
 $("#uiLanguage").value=uiLanguage;
 $("#uiLanguage").onchange=()=>{
  uiLanguage=$("#uiLanguage").value==="bg"?"bg":"en";
- localStorage.uiLanguage=uiLanguage;
+ localStorage.uiLanguage=uiLanguage;renderMaintenance();
  localizeControls();
  document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 };

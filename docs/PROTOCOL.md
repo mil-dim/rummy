@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **7**
+Protocol version: **8**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -228,3 +228,23 @@ restores it. Disconnected watchers retain a ten-minute reconnect grace (pruned o
 the minute cleanup tick). Each room allows at most 50 watcher identities.
 Watching activity never refreshes player room activity, so observers cannot keep
 abandoned rooms alive indefinitely. Room deletion notifies watchers with roomLeft.
+
+
+## Lobby identities and maintenance (protocol 8)
+
+`rename {name}` updates the current session without changing its player ID or seat.
+`identityChanged` updates every tab of that session. `signOut` requires no current
+membership; clients explicitly confirm and leave first if necessary. It invalidates
+the token, clears all session tabs with `signedOut`, and does not clear language
+preferences or other local data. `setView {view:lobby|room}` updates presence.
+`people` entries contain id/name/connected/activity/roomId/roomName, never tokens.
+Disconnected people are listed only while they retain a table membership.
+
+Room names are normalized/sanitized and unique (case/spacing-insensitive) on the
+authoritative server. Duplicate requests receive an available numeric suffix.
+The client suggests unused funny names in the selected UI language.
+
+`maintenance` is null or {deadline,message}. It is emitted on connection/change.
+Only the private token-authenticated loopback operator API can set it; no public
+Socket.IO action controls it. A notice drains new rooms/player joins/new games
+but does not terminate or restart games. See OPERATIONS.md for deployment rules.

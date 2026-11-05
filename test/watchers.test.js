@@ -29,7 +29,7 @@ test('watchers receive live public state, resume safely, cannot play, and leave 
  for(const member of [...lobby.playerList,...lobby.watchers])assert.deepEqual(Object.keys(member).sort(),['connected','id','name']);
  const started=event(watcher,'room',r=>!!r.game),bStarted=event(b,'room',r=>!!r.game);
  assert.equal((await send(a,'startGame',{sprintCount:2})).ok,true);await Promise.all([started,bStarted]);
- let g=watcher.room.game;assert.equal(watcher.room.protocolVersion,7);
+ let g=watcher.room.game;assert.equal(watcher.room.protocolVersion,8);
  for(const id of g.players)assert.deepEqual(g.hands[id],{count:13});assert.equal(g.canUndo,false);assert.deepEqual(Object.keys(g.stock),['count']);
  const hidden=[...a.room.game.hands[a.identity.player.id],...b.room.game.hands[b.identity.player.id]].map(c=>c.id);
  for(const id of hidden)assert.ok(!JSON.stringify(watcher.room).includes(id),'hand IDs must not reach watcher');

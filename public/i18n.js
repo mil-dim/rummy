@@ -106,7 +106,7 @@ const labels = {
  'match points.':'точки.', 'BACKGAMMON':'ТАБЛА',
  'Connected':'Свързан', 'Connecting…':'Свързване…', 'Reconnecting…':'Повторно свързване…',
  'A PRIVATE GAME TABLE':'ЧАСТНА МАСА ЗА ИГРА', 'Cards, dice,':'Карти, зарове,', 'good company.':'добра компания.',
- 'Bulgarian Rummy and Backgammon for friends on your LAN or across the internet.':'Българско реми и табла за приятели в локалната мрежа или по интернет.',
+ 'Bulgarian Rummy and Backgammon for friends, wherever they are.':'Българско реми и табла за приятели, където и да са.',
  'Your name':'Вашето име', 'GAME LOBBY':'ЛОБИ', 'Choose your table':'Изберете маса',
  'Your seat is reserved. Leave before joining another table.':'Мястото ви е запазено. Напуснете, преди да се присъедините към друга маса.',
  'No open rooms yet.':'Все още няма отворени стаи.', 'Open a table':'Отворете маса',

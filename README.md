@@ -1,4 +1,4 @@
-# Tabletop LAN
+# Tabletop
 
 Self-hosted real-time Bulgarian Rummy and Backgammon for a Proxmox VM.
 

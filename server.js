@@ -179,12 +179,14 @@ function people(){
  });
 }
 function emitPeople(){io.emit("people",people())}
-function invitationView(invitation){
- const room=rooms.get(invitation.roomId);
- return room?{id:invitation.id,roomId:room.id,roomName:room.name,gameType:room.gameType,fromName:invitation.fromName}:null;
+function invitationView(player){
+ const invitation=player.invitation,room=invitation&&rooms.get(invitation.roomId);
+ if(!room||room.game||room.players.length>=room.maxPlayers)return null;
+ return {id:invitation.id,roomId:room.id,roomName:room.name,gameType:room.gameType,fromName:invitation.fromName,
+  actionable:!findMembership(player.id)&&!maintenance};
 }
 function emitInvitation(player){
- const view=player.invitation?invitationView(player.invitation):null;
+ const view=player.invitation?invitationView(player):null;
  if(player.invitation&&!view)player.invitation=null;
  for(const client of io.sockets.sockets.values())if(client.data.player===player)client.emit("gameInvitation",view);
 }
@@ -409,7 +411,7 @@ io.on("connection", socket => {
       const target=[...sessions.values()].find(candidate=>candidate.id===targetId);
       if(!target||!target.socketId)throw Error("That person is no longer online.");
       if(target===player)throw Error("You are already at this table.");
-      if(findMembership(target.id))throw Error("That person is already at a table.");
+      if(findMembership(target.id)?.id===room.id)throw Error("That person is already at this table.");
       target.invitation={id:randomUUID(),roomId:room.id,fromId:player.id,fromName:player.name};
       emitInvitation(target);reply(ack,{ok:true});
     }catch(error){reply(ack,{ok:false,error:error.message})}
@@ -526,6 +528,7 @@ io.on("connection", socket => {
       if (watched) {
         watched.watchers = watched.watchers.filter(member => member.id !== player.id);
         notifyRoomLeft(player.id,watched.id); emitRoom(watched,false);
+        emitInvitation(player);
         reply(ack,{ok:true}); return;
       }
       const room = findPlayerRoom(player.id);
@@ -548,6 +551,7 @@ io.on("connection", socket => {
         if (room.hostId === player.id) room.hostId = room.players[0].id;
         emitRoom(room);
       }
+      emitInvitation(player);
       reply(ack, { ok: true });
     } catch (error) {
       reply(ack, { ok: false, error: error.message });

@@ -30,7 +30,7 @@ const bg = {
   'Concede 1 point':'Предай се за 1 точка',
   'Concede Mars — 2 points':'Предай се с марс — 2 точки',
   'Accept concession':'Приеми предаването', 'Decline':'Откажи', 'Cancel offer':'Отмени предложението',
-  'Watch':'Гледай', 'Resume watching':'Продължи наблюдението', 'Stop watching':'Спри наблюдението',
+  'Watch':'Гледай', 'Resume watching':'Продължи наблюдението', 'Stop watching':'Спри наблюдението', 'Later':'По-късно',
   'Change name':'Промени името', 'Sign out':'Изход', 'Save name':'Запази името',
   'Invite':'Покани', 'Accept':'Приеми',
   'Roll': 'Хвърли заровете',
@@ -74,6 +74,7 @@ const labels = {
 
  'People':'Хора', 'No one here yet.':'Все още няма никого.', 'In lobby':'В лобито', 'Playing':'Играе', 'Watching':'Наблюдава', 'Disconnected':'Временно изключен', 'At table':'На маса',
  'Game invitation':'Покана за игра', 'invited you to':'ви покани на', 'Invitation sent.':'Поканата е изпратена.', 'Current game':'Текуща игра',
+ 'You are at another table. You can use this invitation after you leave it.':'Вече сте на друга маса. Можете да използвате поканата, след като я напуснете.',
  'Planned restart in':'Планирано рестартиране след', 'Maintenance is due. Waiting for the operator.':'Времето за поддръжка настъпи. Изчаква се операторът.',
  'Current games may continue. No automatic restart.':'Текущите игри могат да продължат. Няма автоматично рестартиране.',
  'Stop watching and sign out?':'Да спрете ли наблюдението и да излезете?',

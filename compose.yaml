@@ -9,7 +9,11 @@ services:
       APP_ENV: "${APP_ENV:-${COMPOSE_PROJECT_NAME:-unspecified}}"
       NODE_ENV: "${NODE_ENV:-production}"
       PUBLIC_ORIGINS: "${PUBLIC_ORIGINS:-}"
+      ADMIN_PORT: 9090
+      DICE_AUDIT_DIR: /data/dice
       TRUST_PROXY: "${TRUST_PROXY:-0}"
+    volumes:
+      - runtime-data:/data
     read_only: true
     tmpfs:
       - /tmp:size=16m,noexec,nosuid
@@ -20,3 +24,6 @@ services:
     mem_limit: 256m
     cpus: 1.0
     pids_limit: 100
+
+volumes:
+  runtime-data:

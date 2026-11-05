@@ -129,3 +129,7 @@ header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 
 .member-name{display:inline-block;margin-right:6px}.room-members,.room-watchers{font-size:14px;overflow-wrap:anywhere}
 .room-status{font-weight:700}.hand-counts{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.hand-counts h3{width:100%}.hand-counts p{margin:0 0 12px}
+
+.maintenance-notice{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:16px;background:#fff1ba;border-bottom:2px solid #b04b2e}.maintenance-notice small{width:100%;text-align:center}
+.people-panel{margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.people-panel p{margin:5px 0;overflow-wrap:anywhere}#profileActions{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px}#currentName{max-width:140px;overflow-wrap:anywhere}
+[hidden]{display:none!important}

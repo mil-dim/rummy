@@ -1,3 +1,6 @@
+import {suggestName,uniqueName} from "./public/room-names.js";
+import {createDiceAudit} from "./lib/dice-audit.js";
+import {startAdmin} from "./lib/admin.js";
 import express from "express";
 import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -37,7 +40,7 @@ const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
-const PROTOCOL_VERSION = 7;
+const PROTOCOL_VERSION = 8;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -48,6 +51,8 @@ const configuredOrigins = new Set(
 const rooms = new Map();
 const sessions = new Map();
 const connectionAttempts = new Map();
+let maintenance=null;
+const audit=createDiceAudit(process.env.DICE_AUDIT_DIR,buildInfo.environment);
 const app = express();
 const server = http.createServer(app);
 
@@ -156,7 +161,28 @@ function lobby() {
 
 function emitLobby() {
   io.emit("lobby", lobby());
+  emitPeople();
 }
+
+function people(){
+ return [...sessions.values()].filter(p=>p.socketId||findMembership(p.id)).map(p=>{
+  const seated=findPlayerRoom(p.id),watched=findWatchedRoom(p.id),room=seated||watched;
+  return {...playerView(p),activity:!p.socketId?"Disconnected":p.browsingLobby||!room?"In lobby":watched?"Watching":room.game&&!room.game.winner?"Playing":"At table",roomId:room?.id||null,roomName:room?.name||null};
+ });
+}
+function emitPeople(){io.emit("people",people())}
+function checkMaintenance(){if(maintenance)throw Error("Maintenance announced. New games are paused.")}
+function adminStatus(){
+ const users=people(),unfinished=[...rooms.values()].filter(r=>r.game&&!r.game.winner);
+ return {build:buildInfo,maintenance,onlineUsers:users.filter(p=>p.connected).length,people:users,
+  rooms:lobby(),unfinishedGames:unfinished.map(r=>({id:r.id,name:r.name,gameType:r.gameType})),
+  safeToDeploy:Boolean(maintenance&&Date.now()>=maintenance.deadline&&users.every(p=>!p.connected)&&!unfinished.length),
+  memory:process.memoryUsage(),cpuMicros:process.cpuUsage(),uptimeSeconds:process.uptime(),audit:audit.status()};
+}
+const admin=startAdmin({port:process.env.ADMIN_PORT,tokenPath:process.env.ADMIN_TOKEN_FILE,status:adminStatus,
+ announce:input=>{if(!Number.isFinite(input.minutes)||input.minutes<0||input.minutes>1440)throw Error("Choose 0 to 1440 minutes");maintenance={deadline:Date.now()+input.minutes*60000,message:cleanText(input.message,"Planned server restart",180)};io.emit("maintenance",maintenance)},
+ lock:()=>{maintenance.locked=true;io.emit("maintenance",maintenance)},
+ cancel:()=>{maintenance=null;io.emit("maintenance",null)}});
 
 function playerView(player) {
   return { id: player.id, name: player.name, connected: Boolean(player.socketId) };
@@ -279,12 +305,15 @@ io.on("connection", socket => {
 
   socket.emit("serverVersion", buildInfo);
   socket.emit("lobby", lobby());
+  socket.emit("maintenance",maintenance);
+  socket.emit("people",people());
 
   socket.on("identify", (payload, ack) => {
     try {
       if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
         throw Error("Invalid identification.");
       }
+      if(maintenance?.locked)throw Error("Maintenance in progress. Try again after the update.");
       let token = typeof payload.token === "string" ? payload.token.slice(0, 100) : "";
       let player = token ? sessions.get(token) : null;
       const sessionReplaced = Boolean(token && !player);
@@ -292,6 +321,7 @@ io.on("connection", socket => {
         throw Error("Already identified. Reconnect to change identity.");
 
       if (!player) {
+        checkMaintenance();
         pruneDisconnectedSessions();
         if (sessions.size >= MAX_SESSIONS) throw Error("Server is busy. Try again later.");
         token = randomUUID();
@@ -310,16 +340,38 @@ io.on("connection", socket => {
       socket.data.player = player;
       socket.data.token = token;
 
+      emitPeople();
       reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findMembership(player.id)) });
       for (const room of rooms.values()) {
         if (room.players.some(candidate => candidate.id === player.id) || (room.watchers || []).some(candidate => candidate.id === player.id)) {
-          socket.join(room.id);
+          player.browsingLobby=false;
+      socket.join(room.id);
           emitRoom(room, Boolean(findPlayerRoom(player.id)));
         }
       }
     } catch (error) {
       reply(ack, { ok: false, error: error.message });
     }
+  });
+
+  socket.on("setView",(payload,ack)=>{
+    const player=socket.data.player;if(!player){reply(ack,{ok:false});return}
+    player.browsingLobby=payload?.view==="lobby";emitPeople();reply(ack,{ok:true});
+  });
+  socket.on("rename",(payload,ack)=>{
+    const player=socket.data.player;
+    if(!player||typeof payload?.name!=="string"||!payload.name.trim()){reply(ack,{ok:false,error:"Enter a name."});return}
+    player.name=cleanText(payload.name,"Player",24);
+    for(const client of io.sockets.sockets.values())if(client.data.player===player)client.emit("identityChanged",playerView(player));
+    const room=findMembership(player.id);if(room)emitRoom(room,false);else emitLobby();
+    reply(ack,{ok:true});
+  });
+  socket.on("signOut",(_payload,ack)=>{
+    const player=socket.data.player;
+    if(player&&findMembership(player.id)){reply(ack,{ok:false,error:"Leave your table or stop watching before signing out."});return}
+    const token=socket.data.token;if(token)sessions.delete(token);
+    for(const client of io.sockets.sockets.values())if(token&&client.data.token===token){client.data.player=null;client.data.token=null;client.emit("signedOut")}
+    emitPeople();reply(ack,{ok:true});
   });
 
   socket.on("createRoom", (payload, ack) => {
@@ -330,13 +382,14 @@ io.on("connection", socket => {
       const player = socket.data.player;
       if (!player) throw Error("Choose your name first.");
       if (findMembership(player.id)) throw Error("Leave your current room first.");
+      checkMaintenance();
       if (rooms.size >= MAX_ROOMS) throw Error("The room limit has been reached.");
 
       const gameType = payload.gameType === "backgammon" ? "backgammon" : "rummy";
       const id = makeRoomId();
       const room = {
         id,
-        name: cleanText(payload.name, "Game room", 30),
+        name: uniqueName(cleanText(payload.name,suggestName([...rooms.values()].map(r=>r.name),payload.language),30),[...rooms.values()].map(r=>r.name)),
         gameType,
         maxPlayers: gameType === "backgammon"
           ? 2
@@ -350,6 +403,7 @@ io.on("connection", socket => {
         lastActive: Date.now()
       };
       rooms.set(id, room);
+      player.browsingLobby=false;
       socket.join(id);
       emitRoom(room);
       reply(ack, { ok: true, id });
@@ -372,9 +426,11 @@ io.on("connection", socket => {
       const currentRoom = findPlayerRoom(player.id);
       if (currentRoom && currentRoom.id !== room.id) throw Error("Leave your current room first.");
       if (!room.players.some(candidate => candidate.id === player.id)) {
+        checkMaintenance();
         if (room.game || room.players.length >= room.maxPlayers) throw Error("Room is unavailable.");
         room.players.push(player);
       }
+      player.browsingLobby=false;
       socket.join(room.id);
       emitRoom(room);
       reply(ack, { ok: true });
@@ -399,6 +455,7 @@ io.on("connection", socket => {
         if (room.watchers.length >= MAX_WATCHERS) throw Error("The watcher limit has been reached.");
         room.watchers.push(player);
       }
+      player.browsingLobby=false;
       socket.join(room.id); emitRoom(room, false); reply(ack,{ok:true});
     } catch (error) { reply(ack,{ok:false,error:error.message}); }
   });
@@ -449,6 +506,7 @@ io.on("connection", socket => {
       if (room.players.length < 2) throw Error("At least two players are required.");
       if (room.game && !room.game.winner) throw Error("The current game is still in progress.");
 
+      checkMaintenance();
       let starter = room.game?.winner || null;
       if (room.gameType === "backgammon" && (!room.match || room.match.finished)) {
         startBackgammonMatch(room, payload?.roundCount ?? 3);
@@ -479,7 +537,11 @@ io.on("connection", socket => {
       const room = findPlayerRoom(player?.id);
       if (!room?.game) throw Error("Game not found.");
       if (room.game.kind === "rummy") rummyAction(room.game, player.id, action);
-      else backgammonAction(room.game, player.id, action);
+      else {
+        const before=room.game.rollNumber;
+        backgammonAction(room.game, player.id, action);
+        if(action.type==="roll"&&room.game.rollNumber>before)audit.record(room,room.game.rollHistory.at(-1));
+      }
       recordResult(room);
       emitRoom(room);
       reply(ack, { ok: true });
@@ -493,6 +555,7 @@ io.on("connection", socket => {
     if (!player) return;
     if (player.socketId === socket.id) player.socketId = null;
     player.lastSeen = Date.now();
+    emitPeople();
     for (const room of rooms.values()) {
       if (room.players.some(candidate => candidate.id === player.id)) emitRoom(room);
       else if ((room.watchers || []).some(candidate => candidate.id === player.id)) emitRoom(room,false);

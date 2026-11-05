@@ -75,3 +75,14 @@ Back to lobby and Resume watching preserve your watcher place. Stop watching
 returns to the lobby without affecting the match. A session has one room membership;
 leave your current seat or stop watching before joining another table. Refresh and
 short disconnects resume watching. Watchers do not keep abandoned rooms alive.
+
+
+## Lobby and operations
+
+Change name preserves your current identity and game. Sign out explicitly confirms
+leaving a seat, then returns every tab for that identity to name entry. Lobby people
+show activity and reserved table; default table names are funny and unique.
+
+See [operator instructions](docs/OPERATIONS.md) for private maintenance announcements,
+drain/deployment checks, persistent accepted-roll auditing and randomness diagnostics.
+The admin port must never be published or proxied.

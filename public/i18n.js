@@ -31,6 +31,7 @@ const bg = {
   'Concede Mars — 2 points':'Предай се с марс — 2 точки',
   'Accept concession':'Приеми предаването', 'Decline':'Откажи', 'Cancel offer':'Отмени предложението',
   'Watch':'Гледай', 'Resume watching':'Продължи наблюдението', 'Stop watching':'Спри наблюдението',
+  'Change name':'Промени името', 'Sign out':'Изход', 'Save name':'Запази името',
   'Roll': 'Хвърли заровете',
   'Roll to start': 'Хвърли за начало'
 };
@@ -67,6 +68,16 @@ export function translateButtons(root, language) {
 // Only application text is translated. Names, card faces and rule articles are
 // explicitly excluded by translateInterface; no game DOM is rebuilt.
 const labels = {
+ 'Leave this table and sign out?':'Да напуснете ли тази маса и да излезете?',
+ 'Maintenance in progress. Try again after the update.':'Извършва се поддръжка. Опитайте след обновяването.',
+
+ 'People':'Хора', 'No one here yet.':'Все още няма никого.', 'In lobby':'В лобито', 'Playing':'Играе', 'Watching':'Наблюдава', 'Disconnected':'Временно изключен', 'At table':'На маса',
+ 'Planned restart in':'Планирано рестартиране след', 'Maintenance is due. Waiting for the operator.':'Времето за поддръжка настъпи. Изчаква се операторът.',
+ 'Current games may continue. No automatic restart.':'Текущите игри могат да продължат. Няма автоматично рестартиране.',
+ 'Stop watching and sign out?':'Да спрете ли наблюдението и да излезете?',
+ 'Leave your table and sign out? An active game will be forfeited and the match will end after this hand.':'Да напуснете ли масата и да излезете? Текущата партия ще бъде служебна загуба, а мачът ще приключи след тази партия.',
+ 'Maintenance announced. New games are paused.':'Обявена е поддръжка. Новите игри са спрени.',
+
  'Watchers':'Наблюдатели', 'None':'Няма', 'Finished':'Приключила', 'Waiting for players':'Изчакват се играчи',
  'Stock cards':'Карти в тестето', 'Cards remaining':'Останали карти',
  'Watching — you are not seated and cannot make moves.':'Наблюдавате — нямате място като играч и не можете да правите ходове.',

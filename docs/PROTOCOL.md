@@ -256,10 +256,14 @@ but does not terminate or restart games. See OPERATIONS.md for deployment rules.
 ## Invitations and lobby game labels (protocol 9)
 
 `invitePlayer {playerId}` is available to a seated player while their table is
-waiting and has a free seat. The target must be connected and have no player or
-watcher membership. The server stores at most one current invitation per identity
-and emits `gameInvitation {id,roomId,roomName,gameType,fromName}` to every tab and
-again after reconnect. Sending another invitation replaces the earlier one.
+waiting and has a free seat. The target must be connected, but may already be
+playing or watching at another table. The server stores at most one current
+invitation per identity and emits
+`gameInvitation {id,roomId,roomName,gameType,fromName,actionable}` to every tab and
+again after reconnect. Sending another invitation replaces the earlier one. For a
+busy recipient `actionable` is false and the invitation is informational. When the
+recipient leaves their current membership, the same still-valid invitation is
+emitted again with `actionable: true`.
 
 `respondInvitation {id,accept}` declines and clears the invitation, or atomically
 revalidates maintenance, membership, capacity and game state before seating the

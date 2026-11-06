@@ -35,6 +35,8 @@ const bg = {
   'Invite':'Покани', 'Accept':'Приеми',
   'Roll': 'Хвърли заровете',
   'Roll to start': 'Хвърли за начало'
+  ,'Play card':'Играй картата','Claim 66':'Обяви 66','Close talon':'Затвори талона','Exchange trump 9':'Смени козовата деветка',
+  'Give selected card':'Дай избраната карта','Return selected four cards':'Върни избраните четири карти','No trump':'Без коз','Pass':'Пас'
 };
 
 export function translateControl(text, language) {
@@ -78,7 +80,7 @@ const labels = {
  'Optional: results will update the public rating.':'По желание: резултатите ще променят публичния рейтинг.',
  'Rated play requires every player to sign in and receive approval.':'За мач с рейтинг всеки играч трябва да влезе и да бъде одобрен.',
  'No rated matches yet.':'Все още няма мачове с рейтинг.', 'Ratings are temporarily unavailable.':'Рейтингът временно не е достъпен.',
- 'Bulgarian Rummy':'Българско реми', 'Backgammon rotation':'Редувана табла',
+ 'Bulgarian Rummy':'Българско реми', 'Backgammon rotation':'Редувана табла', 'Santase (66)':'Сантасе (66)', 'Blato (3-5-8)':'Блато (3-5-8)',
  'Game invitation':'Покана за игра', 'invited you to':'ви покани на', 'Invitation sent.':'Поканата е изпратена.', 'Current game':'Текуща игра',
  'You are at another table. You can use this invitation after you leave it.':'Вече сте на друга маса. Можете да използвате поканата, след като я напуснете.',
  'Planned restart in':'Планирано рестартиране след', 'Maintenance is due. Waiting for the operator.':'Времето за поддръжка настъпи. Изчаква се операторът.',
@@ -116,15 +118,21 @@ const labels = {
  'Connected':'Свързан', 'Connecting…':'Свързване…', 'Reconnecting…':'Повторно свързване…',
  'A PRIVATE GAME TABLE':'ЧАСТНА МАСА ЗА ИГРА', 'Cards, dice,':'Карти, зарове,', 'good company.':'добра компания.',
  'Bulgarian Rummy and Backgammon for friends, wherever they are.':'Българско реми и табла за приятели, където и да са.',
+ 'Bulgarian card games and Backgammon for friends, wherever they are.':'Български игри с карти и табла за приятели, където и да са.',
  'Your name':'Вашето име', 'GAME LOBBY':'ЛОБИ', 'Choose your table':'Изберете маса',
  'Your seat is reserved. Leave before joining another table.':'Мястото ви е запазено. Напуснете, преди да се присъедините към друга маса.',
  'No open rooms yet.':'Все още няма отворени стаи.', 'Open a table':'Отворете маса',
- 'Bulgarian Rummy':'Българско реми', 'Bulgarian Rummy (Joker)':'Българско реми (Жокер)', 'Backgammon':'Табла', 'rummy':'реми', 'backgammon':'табла',
+ 'Bulgarian Rummy':'Българско реми', 'Bulgarian Rummy (Joker)':'Българско реми (Жокер)', 'Backgammon':'Табла', 'rummy':'реми', 'backgammon':'табла', 'santase':'сантасе', 'blato':'блато',
  'Players':'Играчи', 'Player':'Играч', 'Rummy match':'Мач по реми', 'Backgammon match':'Мач по табла',
  'Sprint cycles':'Спринтови цикли', 'Number of games':'Брой партии',
  'With N players, every N+1 game is a double-points sprint.':'При N играчи всяка (N+1)-ва партия е спринт с двойни точки.',
  'Win: 1 point. Mars (opponent has borne off none): 2 points.':'Победа: 1 точка. Марс (противникът няма извадени пулове): 2 точки.',
  'Waiting for the host to start…':'Изчаква се домакинът да започне…', 'Your hand':'Вашите карти',
+ 'Santase match':'Мач по сантасе','Blato match':'Мач по блато','Card match':'Мач с карти',
+ 'First to 11 match points wins.':'Печели първият достигнал 11 точки.','Nine deals rotate the 8, 5 and 3 targets.':'Девет раздавания редуват целите 8, 5 и 3.',
+ 'Trump card':'Козова карта','Current trick':'Текуща ръка','Last trick':'Последна ръка','Talon':'Талон','Closed':'Затворен',
+ 'Hands are hidden while you watch.':'Картите в ръцете са скрити при наблюдение.','Choose contract':'Изберете игра','Card exchange':'Размяна на карти',
+ 'Take the talon and return four cards':'Вземете талона и върнете четири карти','Public talon':'Открит талон','Deal complete':'Раздаването приключи','Deal result':'Резултат от раздаването',
  'Staged melds':'Подготвени комбинации', 'Table melds':'Свалени комбинации',
  'Tap a card, then tap its destination. Tap Done arranging to select cards for play.':'Докоснете карта, после мястото ѝ. Натиснете „Готово с подреждането“, за да избирате карти за игра.',
  'Discard':'Изхвърлена карта', 'Empty':'Празно', 'Cards':'Карти', 'Raw':'Точки в ръката', 'Change':'Промяна',
@@ -146,6 +154,7 @@ const labels = {
  'White moves toward point 1; red toward point 24. Choose a die, then a highlighted point. Hit checkers must re-enter from the center bar first. Undo steps back one move at a time until the final dice move. On doubles, the fourth move commits the turn. If blocked early, undo remains available until the opponent rolls.':'Белите се движат към позиция 1, червените — към позиция 24. Изберете зар, после осветена позиция. Ударените пулове трябва първо да влязат от средната преграда. Можете да връщате местенията едно по едно преди последното. При чифт четвъртото местене потвърждава хода. Ако няма повече възможни ходове, връщането е достъпно до хвърлянето на противника.',
  'An update is available.':'Има налично обновяване.',
  'Leave permanently and forfeit this game? In Rummy, the remaining players finish this hand, then start a new match.':'Да напуснете ли окончателно със служебна загуба? При реми останалите довършват партията, след което започват нов мач.',
+ 'Leave permanently and forfeit this game? The current match will end.':'Да напуснете ли окончателно със служебна загуба? Текущият мач ще приключи.',
  'Leave this table permanently?':'Да напуснете ли тази маса окончателно?',
  'Your previous session expired. You are back in the lobby.':'Предишната ви сесия изтече. Върнахте се в лобито.',
  'This client is too old. Refresh the page.':'Тази версия е остаряла. Презаредете страницата.',
@@ -166,11 +175,13 @@ export function translateText(text, language) {
    .replace(/^Gulbara · /,'Гюлбара · ')
    .replace(/^Tapa · /,'Тапа · ')
    .replace(/Round (\d+) of (\d+)/g,'Кръг $1 от $2')
-   .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
-   .replace(/^ROOM ([A-Za-z0-9]+) · (Bulgarian Rummy \(Joker\)|Backgammon)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
+   .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon|santase|blato)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
+   .replace(/^ROOM ([A-Za-z0-9]+) · (Bulgarian Rummy \(Joker\)|Backgammon|Santase \(66\)|Blato \(3-5-8\))$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
    .replace(/^(\d+)\/(\d+) players · (.+)$/, '$1/$2 играчи · $3')
    .replace(/Game (\d+) of (\d+)/g,'Партия $1 от $2')
    .replace(/Game (\d+)/g,'Партия $1')
+   .replace(/Deal (\d+) of (\d+)/g,'Раздаване $1 от $2')
+   .replace(/Deal (\d+)/g,'Раздаване $1')
    .replace(/ finished$/, ' приключи')
    .replace(/Your turn$/, 'Ваш ред')
    .replace(/SPRINT/g,'СПРИНТ')

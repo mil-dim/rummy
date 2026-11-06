@@ -1,6 +1,7 @@
 # Tabletop
 
-Self-hosted real-time Bulgarian Rummy and Backgammon for a Proxmox VM.
+Self-hosted real-time Bulgarian Rummy, Santase (66), Blato (3-5-8) and
+Backgammon for a Proxmox VM.
 
 Guest play requires no account. Optional Google sign-in supports persistent,
 administrator-approved rated profiles; casual games remain available to everyone.
@@ -64,7 +65,16 @@ rules describe pins and ascending doubles.
 Each player sees their own starting point as 24, with checker-color badges.
 Concede 1 point or concede Mars asks for confirmation and then the opponent's
 acceptance. It ends only the current game. Permanent Leave game remains separate
-and ends the match. Protocol 11 requires current browser assets after deployment.
+and ends the match. Protocol 12 requires current browser assets after deployment.
+
+## Santase and Blato
+
+Santase is a two-player match to 11 points with the Bulgarian 24-card rules,
+20/40 announcements, trump-nine exchange, talon closing and 1/2/3-point deal
+scoring. Blato is a three-player, nine-deal match with rotating 8/5/3 targets,
+the four-card talon, trump/no-trump bidding, one pass per player per match and
+the plus/minus card exchange between deals. Both games are server-authoritative,
+support casual or rated matches, and hide hands from opponents and watchers.
 
 ## Optional Google sign-in and ratings
 
@@ -79,18 +89,18 @@ Never commit the client secret. After first sign-in, approve known people throug
 the private operator command documented in `docs/OPERATIONS.md`.
 
 Casual play never requires an account. A host can select Rated only when every
-seated player is signed in, approved, and uses a distinct account. Rummy, normal
-Backgammon and rotating Backgammon have separate ratings. New accounts transfer
+seated player is signed in, approved, and uses a distinct account. Rummy,
+Santase, Blato, normal Backgammon and rotating Backgammon have separate ratings. New accounts transfer
 rating slowly for their first ten rated matches.
 
 
 ## Watching games
 
-Use **Watch** in the lobby to observe Rummy or any Backgammon variant, even when
+Use **Watch** in the lobby to observe any game, even when
 all player seats are occupied. The lobby lists player and watcher names, online
 status and game status. Watchers cannot play, start games or respond to concessions.
-Rummy hands remain hidden during play; only counts, discard and table melds are
-shown. Finished hands reveal remaining cards for score verification.
+Rummy, Santase and Blato hands remain hidden during play. Public tricks, talons,
+contracts, counts, scores and table melds remain visible as appropriate.
 
 Back to lobby and Resume watching preserve your watcher place. Stop watching
 returns to the lobby without affecting the match. A session has one room membership;

@@ -52,3 +52,8 @@ test('optional account and rating labels have Bulgarian translations',()=>{
  assert.equal(translateControl('Disconnect Google','bg'),'Изключи Google');
 });
 
+test('Santase and Blato controls and room labels translate',()=>{
+ for(const [english,bg] of [['Play card','Играй картата'],['Claim 66','Обяви 66'],['Pass','Пас']])assert.equal(translateControl(english,'bg'),bg);
+ for(const [english,bg] of [['Santase (66)','Сантасе (66)'],['Blato (3-5-8)','Блато (3-5-8)'],['ROOM SIXTY66 · santase','СТАЯ SIXTY66 · сантасе'],['Deal 3 of 9','Раздаване 3 от 9']])assert.equal(translateText(english,'bg'),bg);
+});
+

@@ -49,6 +49,9 @@ dialog{border:0;border-radius:18px;background:var(--paper);box-shadow:0 24px 80p
 
 /* Keep inactive panels hidden even when their component uses display:grid. */
 [hidden]{display:none!important}
+
+.trick-game{max-width:1050px;margin:auto}.trick-status,.trick-table{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}.trick-status h3{font:700 25px Georgia;margin:0 0 8px}.trick-status p{margin:5px 0}.trick-table{display:grid;grid-template-columns:minmax(180px,.35fr) minmax(280px,1fr);gap:18px;min-height:150px}.trick-table h4{margin:0 0 10px}.card-row{display:flex;align-items:flex-start;gap:7px;flex-wrap:wrap;margin:12px 0}.santase-hand,.blato-hand{padding:14px 4px;min-height:125px}.contract-buttons button{font-size:22px;min-width:58px}.trick-game details{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:10px 0}.trick-game .playing-card:disabled{opacity:1;cursor:default}.trick-game .playing-card:disabled:hover{transform:none}.trick-game label{display:flex;align-items:center;gap:7px}
+@media(max-width:700px){.trick-table{grid-template-columns:1fr}.card-row{flex-wrap:nowrap;overflow-x:auto;padding:4px 4px 14px}.card-row .playing-card{flex:0 0 62px;width:62px;height:91px}.trick-game .actions{position:sticky;bottom:0;background:var(--cream);padding:8px 0;z-index:8}}
 .table-melds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
 .table-melds>.meld{min-width:0;margin:0;padding:12px;gap:8px}
 .table-melds>.meld-wide{grid-column:1/-1}

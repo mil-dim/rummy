@@ -11,6 +11,9 @@ import { randomUUID } from "node:crypto";
 import { Server } from "socket.io";
 import { newRummy, publicRummy, rummyAction, forfeitRummy } from "./lib/rummy.js";
 import { newBackgammon, backgammonAction, publicBackgammon, forfeitBackgammon } from "./lib/backgammon.js";
+import {newSantase,publicSantase,santaseAction,forfeitSantase} from "./lib/santase.js";
+import {newBlato,publicBlato,blatoAction,forfeitBlato} from "./lib/blato.js";
+import {startSantaseMatch,recordSantaseResult,startBlatoMatch,recordBlatoResult} from "./lib/card-matches.js";
 
 import { startBackgammonMatch, recordBackgammonResult, backgammonVariant } from "./lib/backgammon-match.js";
 
@@ -44,7 +47,7 @@ const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
-const PROTOCOL_VERSION = 11;
+const PROTOCOL_VERSION = 12;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -162,7 +165,7 @@ function lobby() {
     players: room.players.length,
     maxPlayers: room.maxPlayers,
     started: Boolean(room.game),
-    status: !room.game ? "waiting" : room.game.winner ? "finished" : "playing",
+    status: !room.game ? "waiting" : gameFinished(room.game) ? "finished" : "playing",
     variant: room.game?.variant || null,
     currentGame: room.game ? {
       number: room.game.gameNumber,
@@ -187,7 +190,7 @@ function emitLobby() {
 function people(){
  return [...sessions.values()].filter(p=>p.socketId||findMembership(p.id)).map(p=>{
   const seated=findPlayerRoom(p.id),watched=findWatchedRoom(p.id),room=seated||watched;
-  return {...playerView(p),activity:!p.socketId?"Disconnected":p.browsingLobby||!room?"In lobby":watched?"Watching":room.game&&!room.game.winner?"Playing":"At table",roomId:room?.id||null,roomName:room?.name||null};
+  return {...playerView(p),activity:!p.socketId?"Disconnected":p.browsingLobby||!room?"In lobby":watched?"Watching":room.game&&!gameFinished(room.game)?"Playing":"At table",roomId:room?.id||null,roomName:room?.name||null};
  });
 }
 function emitPeople(){io.emit("people",people())}
@@ -197,6 +200,7 @@ function invitationView(player){
  return {id:invitation.id,roomId:room.id,roomName:room.name,gameType:room.gameType,fromName:invitation.fromName,
   actionable:!findMembership(player.id)&&!maintenance};
 }
+const gameFinished=game=>Boolean(game?.winner||game?.finished);
 function emitInvitation(player){
  const view=player.invitation?invitationView(player):null;
  if(player.invitation&&!view)player.invitation=null;
@@ -208,7 +212,7 @@ function clearRoomInvitations(roomId){
 }
 function checkMaintenance(){if(maintenance)throw Error("Maintenance announced. New games are paused.")}
 function adminStatus(){
- const users=people(),unfinished=[...rooms.values()].filter(r=>r.game&&!r.game.winner);
+ const users=people(),unfinished=[...rooms.values()].filter(r=>r.game&&!gameFinished(r.game));
  return {build:buildInfo,maintenance,onlineUsers:users.filter(p=>p.connected).length,people:users,
   rooms:lobby(),unfinishedGames:unfinished.map(r=>({id:r.id,name:r.name,gameType:r.gameType})),
   safeToDeploy:Boolean(maintenance&&Date.now()>=maintenance.deadline&&users.every(p=>!p.connected)&&!unfinished.length),
@@ -257,7 +261,9 @@ function emitRoom(room, touch = true) {
     const role = room.players.some(member => member.id === player.id) ? "player" : "watcher";
     const viewer = role === "player" ? player.id : null;
     const state = room.game?.kind === "rummy" ? publicRummy(room.game, viewer)
-      : room.game?.kind === "backgammon" ? publicBackgammon(room.game, viewer) : room.game;
+      : room.game?.kind === "backgammon" ? publicBackgammon(room.game, viewer)
+      : room.game?.kind === "santase" ? publicSantase(room.game, viewer)
+      : room.game?.kind === "blato" ? publicBlato(room.game, viewer) : room.game;
     if (player.socketId) {
       io.to(player.socketId).emit("room", {
         protocolVersion: PROTOCOL_VERSION,
@@ -304,7 +310,9 @@ function recordRummyResult(room) {
 function recordResult(room) {
   recordRummyResult(room);
   recordBackgammonResult(room);
-  if(room.match?.finished&&room.game?.winner&&room.game.resultRecorded&&room.match.rated&&room.ratingContext&&!room.ratingContext.recorded){
+  recordSantaseResult(room);
+  recordBlatoResult(room);
+  if(room.match?.finished&&gameFinished(room.game)&&room.game.resultRecorded&&room.match.rated&&room.ratingContext&&!room.ratingContext.recorded){
    try{
     const result=scoreStore.recordMatch({id:room.ratingContext.id,roomId:room.id,category:room.ratingContext.category,
      participants:room.ratingContext.players.map(item=>({accountId:item.accountId,score:Number(room.match.cumulative[item.playerId]||0)}))});
@@ -479,14 +487,14 @@ io.on("connection", socket => {
       checkMaintenance();
       if (rooms.size >= MAX_ROOMS) throw Error("The room limit has been reached.");
 
-      const gameType = payload.gameType === "backgammon" ? "backgammon" : "rummy";
+      const gameType = ["rummy","backgammon","santase","blato"].includes(payload.gameType) ? payload.gameType : "rummy";
       const id = makeRoomId();
       const room = {
         id,
         name: uniqueName(cleanText(payload.name,suggestName([...rooms.values()].map(r=>r.name),payload.language),30),[...rooms.values()].map(r=>r.name)),
         gameType,
-        maxPlayers: gameType === "backgammon"
-          ? 2
+        maxPlayers: ["backgammon","santase"].includes(gameType)
+          ? 2 : gameType === "blato" ? 3
           : Math.max(2, Math.min(6, Number(payload.maxPlayers) || 2)),
         players: [player],
         watchers: [],
@@ -571,9 +579,11 @@ io.on("connection", socket => {
       }
       const room = findPlayerRoom(player.id);
       if (!room) { reply(ack, { ok: true }); return; }
-      if (room.game && !room.game.winner) {
+      if (room.game && !gameFinished(room.game)) {
         if (room.game.kind === "rummy") forfeitRummy(room.game, player.id);
-        else forfeitBackgammon(room.game, player.id);
+        else if(room.game.kind === "backgammon")forfeitBackgammon(room.game, player.id);
+        else if(room.game.kind === "santase")forfeitSantase(room.game, player.id);
+        else if(room.game.kind === "blato")forfeitBlato(room.game, player.id);
       }
       if (room.match) {
         room.match.endAfterHand = true;
@@ -604,7 +614,8 @@ io.on("connection", socket => {
       const room = findPlayerRoom(player?.id);
       if (!room || room.hostId !== player.id) throw Error("Only the host can start.");
       if (room.players.length < 2) throw Error("At least two players are required.");
-      if (room.game && !room.game.winner) throw Error("The current game is still in progress.");
+      if (room.game && !gameFinished(room.game)) throw Error("The current game is still in progress.");
+      if (room.gameType === "blato" && room.players.length !== 3) throw Error("Blato requires exactly three players.");
 
       checkMaintenance();
       clearRoomInvitations(room.id);
@@ -620,11 +631,20 @@ io.on("connection", socket => {
         if (room.match.finished) throw Error("Start a new match first.");
         if (room.match.completedGames >= room.match.totalGames) throw Error("This match has finished.");
       }
+      if(room.gameType==="santase"&&(!room.match||room.match.finished)){
+        validateRatedMatch(room,payload?.rated===true);startSantaseMatch(room);enableRatedMatch(room,payload?.rated===true,'santase');
+      }
+      if(room.gameType==="blato"&&(!room.match||room.match.finished)){
+        validateRatedMatch(room,payload?.rated===true);startBlatoMatch(room);enableRatedMatch(room,payload?.rated===true,'blato');
+      }
+      if(room.match?.finished)throw Error("Start a new match first.");
       room.gameNumber += 1;
-      room.game = room.gameType === "rummy"
-        ? newRummy(room.players, room.gameNumber)
-        : newBackgammon(room.players, { gameNumber: room.gameNumber, starter,
-          variant: backgammonVariant(room.gameNumber, room.match?.variantMode) });
+      room.game = room.gameType === "rummy" ? newRummy(room.players, room.gameNumber)
+        : room.gameType === "backgammon" ? newBackgammon(room.players, { gameNumber: room.gameNumber, starter,
+          variant: backgammonVariant(room.gameNumber, room.match?.variantMode) })
+        : room.gameType === "santase" ? newSantase(room.players,{gameNumber:room.gameNumber,dealer:room.match.dealer})
+        : newBlato(room.players,{gameNumber:room.gameNumber,dealer:(room.gameNumber-1)%3,
+          previousScores:room.match.previousScores,passesUsed:room.match.passesUsed});
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {
@@ -641,11 +661,12 @@ io.on("connection", socket => {
       const room = findPlayerRoom(player?.id);
       if (!room?.game) throw Error("Game not found.");
       if (room.game.kind === "rummy") rummyAction(room.game, player.id, action);
-      else {
+      else if(room.game.kind==="backgammon"){
         const before=room.game.rollNumber;
         backgammonAction(room.game, player.id, action);
         if(action.type==="roll"&&room.game.rollNumber>before)audit.record(room,room.game.rollHistory.at(-1));
-      }
+      }else if(room.game.kind==="santase")santaseAction(room.game,player.id,action);
+      else if(room.game.kind==="blato")blatoAction(room.game,player.id,action);
       recordResult(room);
       emitRoom(room);
       reply(ack, { ok: true });

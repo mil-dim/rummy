@@ -11,6 +11,7 @@ let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pending
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
 const playerName=id=>`<span data-no-translate>${esc(player(id)?.name||"Player")}</span>`;
+const gameIsFinished=game=>Boolean(game?.winner||game?.finished);
 const toast=message=>{const element=$("#toast");element.textContent=translateText(String(message||"Something went wrong."),uiLanguage);element.style.display="block";setTimeout(()=>element.style.display="none",3000)};
 function renderAccount(){
  $("#authActions").hidden=!authConfigured&&!signedAccount;$("#googleSignIn").hidden=Boolean(signedAccount)||!authConfigured;
@@ -19,7 +20,7 @@ function renderAccount(){
 }
 async function loadAccount(){try{const response=await fetch('/api/account',{cache:'no-store'}),data=await response.json();authConfigured=Boolean(data.configured);signedAccount=data.account;renderAccount()}catch{}}
 $("#accountSignOut").onclick=async()=>{await fetch('/auth/logout',{method:'POST'});location.reload()};
-const ratingName=category=>category==='rummy'?'Bulgarian Rummy':category==='backgammon-normal'?'Normal Backgammon':'Backgammon rotation';
+const ratingName=category=>({rummy:'Bulgarian Rummy','backgammon-normal':'Normal Backgammon','backgammon-rotate':'Backgammon rotation',santase:'Santase (66)',blato:'Blato (3-5-8)'})[category]||category;
 async function loadScoreboard(){
  try{const response=await fetch('/api/scoreboard',{cache:'no-store'}),data=await response.json(),groups=(data.ratings||[]).reduce((all,row)=>{(all[row.category]||=[]).push(row);return all},{});
   $("#scoreboards").innerHTML=Object.keys(groups).length?`<div class="scoreboard-grid">${Object.entries(groups).map(([category,rows])=>`<div><h4>${esc(ratingName(category))}</h4><table><thead><tr><th>Player</th><th>Rating</th><th>Games</th></tr></thead><tbody>${rows.map(row=>`<tr><td data-no-translate>${esc(row.display_name)}</td><td>${Number(row.rating)}</td><td>${Number(row.games)}</td></tr>`).join("")}</tbody></table></div>`).join("")}</div>`:'<p>No rated matches yet.</p>';localizeControls($("#scoreboards"));
@@ -67,7 +68,7 @@ $("#signOut").onclick=()=>{
  const warning=room.role==="watcher"?"Stop watching and sign out?":room.game&&!room.game.winner?"Leave your table and sign out? An active game will be forfeited and the match will end after this hand.":"Leave this table and sign out?";
  if(confirm(translateText(warning,uiLanguage)))socket.emit("leaveRoom",{},response=>{if(response.ok)logout();else toast(response.error)});
 };
-function gameTypeName(type){return type==="rummy"?"Bulgarian Rummy (Joker)":"Backgammon"}
+function gameTypeName(type){return ({rummy:"Bulgarian Rummy (Joker)",backgammon:"Backgammon",santase:"Santase (66)",blato:"Blato (3-5-8)"})[type]||type}
 function canInvite(person){return Boolean(room?.role==="player"&&!room.game&&room.players.length<room.maxPlayers&&!maintenance&&person.id!==me?.id&&person.connected&&person.roomId!==room.id)}
 function renderPeople(){
  $("#people").innerHTML=lobbyPeople.map(person=>`<p><span><span data-no-translate>${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</span>${canInvite(person)?` <button class="small ghost" data-invite="${esc(person.id)}">Invite</button>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();
@@ -103,6 +104,8 @@ function currentGameLabel(item){
  const game=item.currentGame;if(!game)return "";
  const rated=game.rated?" · Rated":"";
  if(item.gameType==="rummy")return `Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}${game.sprint?" · SPRINT ×2":""}${rated}`;
+ if(item.gameType==="santase")return `Deal ${game.number} · first to 11${rated}`;
+ if(item.gameType==="blato")return `Deal ${game.number} of ${game.totalGames||9}${rated}`;
  return `${variantName(game.variant)}${game.round&&game.roundCount?` · Round ${game.round} of ${game.roundCount}`:""} · Game ${game.number}${game.totalGames?` of ${game.totalGames}`:""}${rated}`;
 }
 function renderLobby(){
@@ -121,7 +124,7 @@ document.addEventListener("click",event=>{
  if(button&&!room){browsingLobby=false;sessionStorage.setItem("tabletopView","room");socket.emit("watchRoom",{id:button.dataset.watch},response=>{if(!response.ok){setLobbyView(true);toast(response.error)}})}
 });
 $("#newRoom").onclick=()=>{$("#createName").value=suggestName(lobbyRooms.map(r=>r.name),uiLanguage);$("#create").showModal()};
-$("#gameType").onchange=()=>{const backgammon=$("#gameType").value==="backgammon";$("#maxPlayers").disabled=backgammon;if(backgammon)$("#maxPlayers").value=2};
+$("#gameType").onchange=()=>{const type=$("#gameType").value,fixed=type!=="rummy";$("#maxPlayers").disabled=fixed;if(type==="blato")$("#maxPlayers").value=3;else if(fixed)$("#maxPlayers").value=2};
 $("#createGo").onclick=event=>{event.preventDefault();socket.emit("createRoom",{name:$("#createName").value,language:uiLanguage,gameType:$("#gameType").value,maxPlayers:$("#maxPlayers").value},response=>{if(response.ok){$("#create").close();setLobbyView(false)}else toast(response.error)})};
 
 function setLobbyView(value){
@@ -134,7 +137,7 @@ function leaveGame(){
  if(!room)return;
  if(room.role==="watcher"){socket.emit("leaveRoom",{},response=>{if(!response?.ok)toast(response?.error)});return}
  const message=room.game&&!room.game.winner
-   ?"Leave permanently and forfeit this game? In Rummy, the remaining players finish this hand, then start a new match."
+   ?"Leave permanently and forfeit this game? The current match will end."
    :"Leave this table permanently?";
  if(confirm(translateText(message,uiLanguage)))socket.emit("leaveRoom",{},response=>{if(!response?.ok)toast(response?.error)});
 }
@@ -146,7 +149,7 @@ socket.on("roomLeft",()=>{
 
 function updateStartButton(){
  const button=$("#start");
- if(room.role==="watcher"||room.hostId!==me.id||room.game&&!room.game.winner){button.hidden=true;return}
+ if(room.role==="watcher"||room.hostId!==me.id||room.game&&!gameIsFinished(room.game)){button.hidden=true;return}
  button.hidden=false;button.disabled=Boolean(maintenance);
  if(!room.game)button.textContent="Start match";
  else if(room.match?.finished)button.textContent="New match";
@@ -166,6 +169,11 @@ $("#bgVariantMode").onchange=renderBackgammonFormat;
 $("#start").onclick=()=>{
  if(room.gameType==="backgammon"&&(!room.match||room.match.finished)){renderBackgammonFormat();configureRated($("#bgRated"));$("#bgMatchSetup").showModal();return}
  if(room.gameType==="rummy"&&(!room.match||room.match.finished)){configureRated($("#rummyRated"));$("#matchSetup").showModal();return}
+ if(["santase","blato"].includes(room.gameType)&&(!room.match||room.match.finished)){
+  $("#cardMatchTitle").textContent=room.gameType==="santase"?"Santase match":"Blato match";
+  $("#cardMatchHint").textContent=room.gameType==="santase"?"First to 11 match points wins.":"Nine deals rotate the 8, 5 and 3 targets.";
+  configureRated($("#cardRated"));$("#cardMatchSetup").showModal();localizeControls($("#cardMatchSetup"));return;
+ }
  socket.emit("startGame",{},response=>!response.ok&&toast(response.error));
 };
 $("#matchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{sprintCount:Number($("#sprintCount").value),rated:$("#rummyRated").checked},response=>{if(response.ok)$("#matchSetup").close();else toast(response.error)})};
@@ -174,10 +182,11 @@ $("#bgMatchGo").onclick=event=>{
  event.preventDefault();const input=$("#bgGameCount");if(!input.reportValidity())return;
  socket.emit("startGame",{roundCount:Number(input.value),variantMode:$("#bgVariantMode").value,rated:$("#bgRated").checked},response=>{if(response.ok)$("#bgMatchSetup").close();else toast(response.error)});
 };
+$("#cardMatchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{rated:$("#cardRated").checked},response=>{if(response.ok)$("#cardMatchSetup").close();else toast(response.error)})};
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>11){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>12){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -208,6 +217,61 @@ function cardHtml(card,{hand=false,proof=false}={}){
  <span class="corner top"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span>
  <span class="pip">${joker?(label?`JOKER<br><small>→ ${esc(label)}</small>`:"JOKER"):esc(card.suit)}</span>
  <span class="corner bottom"><b>${joker?"★":esc(card.rank)}</b><i>${joker?esc(label):esc(card.suit)}</i></span></button>`;
+}
+
+function trickCard(card,{id=card.id,disabled=false,selectedCard=false}={}){
+ return cardHtml(card).replace('<button class="playing-card ',`<button data-trick-card="${esc(id)}" class="playing-card ${selectedCard?'selected ':''}`).replace(' aria-label=',`${disabled?' disabled':''} aria-label=`);
+}
+
+function renderSantase(game){
+ const watching=room.role==='watcher',side=game.players.indexOf(me.id),mine=side>=0&&game.turn===side&&!game.finished;
+ const hand=Array.isArray(game.hands[side])?game.hands[side]:[],legal=new Set(game.legalCardIds||[]),chosen=hand.find(card=>selected.has(card.id));
+ const canMarriage=chosen&&game.trick.length===0&&game.tricksWon[side]>0&&['K','Q'].includes(chosen.rank)&&hand.some(card=>card.suit===chosen.suit&&card.rank===(chosen.rank==='K'?'Q':'K'));
+ const scoreLine=game.players.map((id,index)=>`${playerName(id)}: <strong>${Number(game.cardPoints[index])+Number(game.marriagePoints[index])}</strong> (${Number(game.tricksWon[index])} tricks)`).join(' · ');
+ const status=game.finished?(game.draw?'Equal points — redeal':`${playerName(game.winner)} wins ${Number(game.awarded)} match point(s)`):`${mine?'Your turn':playerName(game.players[game.turn])+"'s turn"}`;
+ $("#game").innerHTML=`<section class="trick-game"><p class="bg-progress">Santase · Deal ${Number(game.gameNumber)}${room.match?.rated?' · Rated':''} · First to 11</p>
+  <div class="trick-status"><h3>${status}</h3><p>${scoreLine}</p><p>Trump: <strong>${esc(game.trumpSuit)}</strong> · Talon: ${Number(game.stock.count)}${game.closed?' · Closed':''}</p></div>
+  <div class="trick-table"><div><h4>Trump card</h4>${game.trumpCard?trickCard(game.trumpCard,{disabled:true}):'<p>Taken</p>'}</div><div><h4>Current trick</h4><div class="card-row">${game.trick.map(item=>trickCard(item.card,{disabled:true})).join('')||'<span>Waiting for lead…</span>'}</div></div></div>
+  ${game.lastTrick?`<details><summary>Last trick</summary><div class="card-row">${game.lastTrick.cards.map(card=>trickCard(card,{disabled:true})).join('')}</div></details>`:''}
+  ${game.finished?`<section class="results"><h3>${game.reason==='false-claim'?'Incorrect 66 claim':game.reason==='failed-close'?'Talon close failed':game.draw?'65–65 draw':'Deal complete'}</h3></section>${standings()}`:''}
+  ${!watching&&!game.finished?`<section><h3>Your hand</h3><div class="card-row santase-hand">${hand.map(card=>trickCard(card,{disabled:!legal.has(card.id),selectedCard:selected.has(card.id)})).join('')}</div>
+   <div class="actions"><label><input id="announceMarriage" type="checkbox" ${canMarriage?'':'disabled'}> Announce ${canMarriage?(chosen.suit===game.trumpSuit?'40':'20'):''}</label><button id="playSantase" ${chosen&&legal.has(chosen.id)?'':'disabled'}>Play card</button><button id="claim66">Claim 66</button><button id="closeTalon" ${game.canClose?'':'disabled'}>Close talon</button><button id="exchangeTrump" ${game.canExchange?'':'disabled'}>Exchange trump 9</button></div></section>`:''}
+  ${watching&&!game.finished?'<p class="notice">Hands are hidden while you watch.</p>':''}</section>`;
+ document.querySelectorAll('[data-trick-card]:not([disabled])').forEach(button=>button.onclick=()=>{selected.clear();selected.add(button.dataset.trickCard);renderSantase(game);localizeControls()});
+ $("#playSantase")?.addEventListener('click',()=>{if(chosen)act({type:'play',cardId:chosen.id,announce:Boolean($("#announceMarriage")?.checked)})});
+ $("#claim66")?.addEventListener('click',()=>act({type:'claim66'}));
+ $("#closeTalon")?.addEventListener('click',()=>act({type:'close'}));
+ $("#exchangeTrump")?.addEventListener('click',()=>act({type:'exchangeTrump'}));
+}
+
+function renderBlato(game){
+ const watching=room.role==='watcher',side=game.players.indexOf(me.id),mine=side>=0&&game.turn===side&&!game.finished;
+ const hand=Array.isArray(game.hands[side])?game.hands[side]:[],legal=new Set(game.legalCardIds||[]),chosen=hand.find(card=>selected.has(card.id));
+ const seats=game.players.map((id,index)=>`${playerName(id)}: target ${Number(game.targets[index])}, tricks ${Number(game.tricks[index])}${game.scores?`, ${signedPoints(game.scores[index])}`:''}`).join(' · ');
+ const phaseName={bid:'Choose contract',exchange:'Card exchange',kitty:'Take the talon and return four cards',play:'Play',finished:'Deal complete'}[game.phase]||game.phase;
+ const kittyCards=game.phase==='kitty'&&Array.isArray(game.kitty)?game.kitty:[];
+ const selectableKitty=new Set(kittyCards.map(card=>card.id));
+ $("#game").innerHTML=`<section class="trick-game"><p class="bg-progress">Blato · Deal ${Number(game.gameNumber)} of 9${room.match?.rated?' · Rated':''}</p>
+  <div class="trick-status"><h3>${game.finished?`${game.winners.map(playerName).join(', ')} ${game.winners.length>1?'win':'wins'} the deal`:phaseName}</h3><p>${seats}</p><p>Contract: <strong>${game.contract==='NT'?'No trump':game.contract||'Not chosen'}</strong></p></div>
+  ${game.phase==='bid'&&mine?`<div class="actions contract-buttons">${['♠','♥','♦','♣'].map(suit=>`<button data-contract="${suit}">${suit}</button>`).join('')}<button data-contract="NT">No trump</button><button data-contract="PASS" ${game.passesUsed[side]?'disabled':''}>Pass</button></div>`:''}
+  ${game.phase==='exchange'?`<p class="notice">${playerName(game.exchangeQueue[0]?.giver)} gives a card to ${playerName(game.exchangeQueue[0]?.receiver)}. ${game.exchangeQueue.length} exchange(s) remain.</p>`:''}
+  ${game.phase==='kitty'?`<section><h3>Public talon</h3><div class="card-row">${kittyCards.map(card=>trickCard(card,{selectedCard:selected.has(card.id),disabled:!game.canDiscardKitty})).join('')}</div></section>`:''}
+  ${game.phase==='play'?`<section class="trick-table"><div><h4>Current trick</h4><div class="card-row">${game.trick.map(item=>trickCard(item.card,{disabled:true})).join('')||'<span>Waiting for lead…</span>'}</div></div></section>`:''}
+  ${game.lastTrick?`<details><summary>Last trick</summary><div class="card-row">${game.lastTrick.cards.map(card=>trickCard(card,{disabled:true})).join('')}</div></details>`:''}
+  ${!watching&&!game.finished?`<section><h3>Your hand</h3><div class="card-row blato-hand">${hand.map(card=>trickCard(card,{disabled:game.phase==='play'?!legal.has(card.id):game.phase==='exchange'?!game.canExchange:game.phase==='kitty'?!game.canDiscardKitty:true,selectedCard:selected.has(card.id)})).join('')}</div>
+   ${game.phase==='exchange'&&game.canExchange?`<button id="giveBlato" ${chosen?'':'disabled'}>Give selected card</button>`:''}
+   ${game.phase==='kitty'&&game.canDiscardKitty?`<button id="discardKitty" ${selected.size===4?'':'disabled'}>Return selected four cards</button>`:''}</section>`:''}
+  ${game.finished?`<section class="results"><h3>${game.forfeit?'Deal forfeited':'Deal result'}</h3></section>${standings()}`:''}
+  ${watching&&!game.finished?'<p class="notice">Hands are hidden while you watch.</p>':''}</section>`;
+ document.querySelectorAll('[data-contract]').forEach(button=>button.onclick=()=>act({type:'bid',contract:button.dataset.contract}));
+ document.querySelectorAll('[data-trick-card]:not([disabled])').forEach(button=>button.onclick=()=>{
+  const id=button.dataset.trickCard;
+  if(game.phase==='play'){act({type:'play',cardId:id});return}
+  if(game.phase==='exchange'){selected.clear();selected.add(id)}else if(game.phase==='kitty'){selected.has(id)?selected.delete(id):selected.add(id);if(selected.size>4)selected.delete(selected.values().next().value)}
+  renderBlato(game);localizeControls();
+ });
+ $("#giveBlato")?.addEventListener('click',()=>{if(chosen)act({type:'exchange',cardId:chosen.id})});
+ $("#discardKitty")?.addEventListener('click',()=>act({type:'discardKitty',cardIds:[...selected]}));
 }
 
 function orderKey(){return `rummyOrder:${room.id}:${me.id}`}
@@ -307,7 +371,7 @@ async function jokerAssignments(cards,existing=[]){
 function renderGame(){
  const game=room?.game;
  if(!game){$("#game").innerHTML="<div class='notice'>Waiting for the host to start…</div>";localizeControls();return}
- game.kind==="rummy"?renderRummy(game):renderBackgammon(game);
+ if(game.kind==="rummy")renderRummy(game);else if(game.kind==="backgammon")renderBackgammon(game);else if(game.kind==="santase")renderSantase(game);else renderBlato(game);
  localizeControls();
 }
 

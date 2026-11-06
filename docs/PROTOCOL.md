@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **11**
+Protocol version: **12**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -9,7 +9,9 @@ whether a move is legal.
 ## Session and room events
 
 - `identify { token?, name }` → `{ ok, token, player, resumed, sessionReplaced }`
-- `createRoom { name, gameType, maxPlayers }`
+- `createRoom { name, gameType, maxPlayers }`, where gameType is `rummy`,
+  `backgammon`, `santase`, or `blato`. Santase is fixed at two seats and Blato
+  at three seats.
 - `joinRoom { id }`
 - `invitePlayer { playerId }`
 - `respondInvitation { id, accept }`
@@ -20,7 +22,7 @@ whether a move is legal.
 Every client event uses a Socket.IO acknowledgement shaped as either
 `{ ok: true }` or `{ ok: false, error }`.
 
-## Optional accounts and ratings (protocol 11)
+## Optional accounts and ratings (protocol 12)
 
 Guest identity and play remain unchanged. Google OAuth is optional and uses an
 HttpOnly, SameSite=Lax session cookie. Public player views expose only
@@ -36,7 +38,8 @@ always play casual matches. The rated roster and match ID are locked server-side
 at match start and are not exposed in room state.
 
 Rating is applied once, only when the complete match finishes. Categories are
-`rummy`, `backgammon-normal` and `backgammon-rotate`. Multiplayer Rummy compares
+`rummy`, `backgammon-normal`, `backgammon-rotate`, `santase`, and `blato`.
+Multiplayer Rummy and Blato compare
 each pair from the final cumulative standings and divides K across opponents so
 the update remains zero-sum. Any pair containing an account with fewer than ten
 rated matches uses K=8; established pairs use K=24. A unique database match ID
@@ -56,7 +59,7 @@ The server emits:
 - `gameInvitation`: the current invitation or `null`.
 - `roomLeft { id }`: clears the room in all connected tabs of the leaving session.
 
-Private Rummy hands are redacted for other players until the hand finishes.
+Private Rummy, Santase and Blato hands are redacted for opponents and watchers.
 
 ## Rummy actions
 
@@ -71,6 +74,43 @@ K`; suit uses `♠, ♥, ♦, ♣`.
 
 Card IDs must never appear in more than one staged meld. Meld membership is
 persistent and determines how that meld may later be extended.
+
+## Santase (66)
+
+A Santase match is first to 11 match points. Each deal uses 24 cards and
+`game.hands` is viewer-specific: the viewer receives their six card objects and
+every other hand is `{count}`. The server owns the talon, trick winner, points,
+strict-play transition and deal scoring.
+
+Actions are `{type:"play",cardId,announce?}`, `{type:"claim66"}`,
+`{type:"close"}`, and `{type:"exchangeTrump"}`. `legalCardIds`, `canClose` and
+`canExchange` are viewer-specific hints, not authorization. While the talon is
+open any reply is legal. Once closed or exhausted, the player must follow and
+beat if possible, otherwise trump, otherwise discard. A marriage can be
+announced only while leading with its king or queen after winning a trick.
+
+The server awards 1, 2 or 3 match points on a correct 66 claim, false claim,
+failed close, exhausted hand or forfeit. The previous deal winner deals next;
+the other player leads. A 65-65 deal records no points and repeats the dealer.
+
+## Blato (3-5-8)
+
+A Blato match has nine deals. `targets` rotates 8, 5 and 3 with the dealer.
+Actions are `{type:"bid",contract}` where contract is a suit, `NT`, or `PASS`;
+`{type:"exchange",cardId}`; `{type:"discardKitty",cardIds:[four ids]}`; and
+`{type:"play",cardId}`. Each player may use PASS once per match. Three passes
+redeal without advancing the deal number.
+
+From the second deal, previous positive scores produce a server-managed exchange
+queue against previous negative scores. The giver chooses a card; the server
+returns the receiver's strongest higher card of that suit or returns the given
+card. No exchange occurs in no-trump. The four talon cards are public; the
+8-player takes them and returns four cards whose identities remain private.
+
+Players must follow suit. In a suit contract they must trump when void and
+overtrump when possible. `scores[side]` is tricks minus target and sums to zero.
+The final cumulative totals feed the separate Blato rating category. Public
+projections show only the viewer's hand; watcher hands are all counts.
 
 ## Compatibility
 
@@ -249,7 +289,8 @@ Lobby entries retain numeric `players` and add `playerList`, `watchers`, `status
 only id/name/connected; socket IDs and session tokens never appear in rosters.
 
 Watcher game payloads use a null viewer for the existing public projections.
-During Rummy play all hands are counts, stock is a count, and canUndo is false.
+During Rummy, Santase and Blato play all watcher hands are counts. Rummy stock is
+a count and canUndo is false.
 Melds, discard, turns and scores remain public. After the hand finishes, remaining
 hands are revealed as scoring evidence, as for seated players. Backgammon watchers
 see board, dice and history with no legalMoves, undo or concession authority.

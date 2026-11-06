@@ -18,7 +18,7 @@
   <main>
     <section id="welcome" class="panel">
       <p class="eyebrow">A PRIVATE GAME TABLE</p><h1>Cards, dice,<br><em>good company.</em></h1>
-      <p>Bulgarian Rummy and Backgammon for friends, wherever they are.</p>
+      <p>Bulgarian card games and Backgammon for friends, wherever they are.</p>
       <form id="identity"><input id="name" maxlength="24" placeholder="Your name" required><button>Enter the lobby</button></form>
     </section>
     <section id="lobby" hidden>
@@ -35,9 +35,14 @@
   <dialog id="renameDialog"><form method="dialog"><h2>Change name</h2><input id="renameInput" maxlength="24" required><menu><button value="cancel" class="ghost">Cancel</button><button id="renameSave">Save name</button></menu></form></dialog>
   <dialog id="create"><form method="dialog"><h2>Open a table</h2>
     <input id="createName" value="Evening game" maxlength="30">
-    <select id="gameType"><option value="rummy">Bulgarian Rummy (Joker)</option><option value="backgammon">Backgammon</option></select>
+    <select id="gameType"><option value="rummy">Bulgarian Rummy (Joker)</option><option value="backgammon">Backgammon</option><option value="santase">Santase (66)</option><option value="blato">Blato (3-5-8)</option></select>
     <label>Players <input id="maxPlayers" type="number" value="2" min="2" max="6"></label>
     <menu><button value="cancel" class="ghost">Cancel</button><button id="createGo" value="default">Create</button></menu>
+  </form></dialog>
+  <dialog id="cardMatchSetup"><form method="dialog"><h2 id="cardMatchTitle">Card match</h2>
+    <p id="cardMatchHint"></p>
+    <label><input id="cardRated" type="checkbox"> Rated match</label><small class="ratedHint"></small>
+    <menu><button value="cancel" class="ghost">Cancel</button><button id="cardMatchGo">Start match</button></menu>
   </form></dialog>
   <dialog id="matchSetup"><form method="dialog"><h2>Rummy match</h2>
     <label>Sprint cycles
@@ -70,6 +75,12 @@
         <li>Only an opened player may add to table melds. When stock ends, turn the discard pile over without shuffling; the earliest discard is drawn first.</li>
         <li>Winner receives opponents' remaining points divided by 10, rounded to the nearest whole point (5 rounds up; minimum 1). An unopened opponent counts 100 raw points. Sprint games double the rounded match points. Each loser loses those points and the winner gains their sum; standings always total zero.</li>
       </ul>
+      <h3>Santase (66)</h3>
+      <p>Two players use 24 cards: A, 10, K, Q, J and 9. Card values are 11, 10, 4, 3, 2 and 0. Each player receives six cards and one card establishes trump. While the talon is open, following suit is optional. After it is exhausted or closed, a player must follow suit and beat when possible, otherwise trump, otherwise discard. The trick winner draws first and leads next.</p>
+      <p>A king and queen of one suit score 20, or 40 in trump, when announced while leading after winning a trick. A player on lead who has won a trick may exchange the trump 9 while more than two talon cards remain. The player on lead may close the talon. Correctly claiming at least 66 card points wins 1 point if the opponent has 33+, 2 if the opponent has 32 or fewer but has a trick, or 3 if the opponent has no trick. A false claim or failed close gives the opponent 2 or 3. First to 11 match points wins.</p>
+      <h3>Blato (3-5-8)</h3>
+      <p>Three players use all 52 cards. Each receives 16 and four form a public talon. Positions rotate each deal: dealer needs 3 tricks, the next player 8, and the third 5. The 8-player leads first, takes the talon and returns four hidden cards. The contract is a trump suit or no-trump. Each player may pass only once during the nine-deal match.</p>
+      <p>Follow suit when possible. If void in a suit contract, trump; if a trump has already been played, overtrump when possible. When trump is led, beat it when possible. The score for a deal is tricks taken minus the target, so every deal totals zero. From the second deal, positive players exchange one card per plus point with negative players; the receiver returns the strongest higher card of that suit, or returns the received card. No exchange occurs at no-trump. Highest total after nine deals wins.</p>
       <h3>Match formats</h3>
       <p>Choose Normal Backgammon only, or rotating three-game rounds: normal → Gulbara → Tapa. The previous winner starts each next game, including a change of variant. Every win earns 1 point, or 2 for Mars; totals carry through the match. Concede 1 point or concede Mars with a confirmation; the opponent must accept. A concession finishes this game, not the match.</p>
       <h3>Gulbara</h3><p>All 15 checkers start together on diagonally opposite starting points. Both colors move in the same direction. A single opposing checker blocks a point; no hitting. Bearing off uses the same home-board and oversized-die rules as normal backgammon. Each player's first three regular rolls use ordinary doubles. From their fourth roll, a double plays four moves of that value and then four of each higher value up to six (3:3 means four 3s, four 4s, four 5s, four 6s). If the roller has made at least one move in the sequence but gets blocked, the opponent inherits the remaining moves once. If the roller cannot start, there is no inheritance. If the recipient is blocked, the rest is abandoned. After this, the opponent takes their own normal roll. There is no bonus roll. Undo is available until the sequence finishes or transfers; transferred moves can be undone until they finish or the recipient rolls again.</p>
@@ -88,6 +99,12 @@
         <li>Само свалил играч може да долепя. При свършване на тестето купчината се обръща без разбъркване; първа се тегли най-рано изхвърлената карта.</li>
         <li>Победителят получава точките в ръцете на противниците, разделени на 10 и закръглени до най-близкото цяло число (5 се закръгля нагоре; минимум 1). Несвалил играч е 100 сурови точки. Спринтът удвоява резултата след закръглянето. Всеки загубил губи тези точки, а победителят получава сбора им; общият сбор в класирането винаги е нула.</li>
       </ul>
+      <h3>Сантасе (66)</h3>
+      <p>Двама играчи играят с 24 карти: A, 10, K, Q, J и 9 със стойности 11, 10, 4, 3, 2 и 0. Раздават се по шест карти и се обръща коз. Докато талонът е отворен, не е задължително да се отговаря на боя. След изчерпване или затваряне трябва да се отговори и да се качи, ако е възможно; при липса на боя се цака. Спечелилият взятката тегли пръв и води следващата.</p>
+      <p>Поп и дама от една боя носят 20 точки, а в коз — 40, когато се обявят при водене след спечелена взятка. Деветката коз може да се смени, докато в талона остават повече от две карти. Играчът под ръка може да затвори. При правилно обявени 66 се печелят 1, 2 или 3 точки според точките и взятките на противника. Грешно обявяване или неуспешно затваряне дава 2 или 3 точки на противника. Мачът е до 11 точки.</p>
+      <h3>Блато (3-5-8)</h3>
+      <p>Трима играчи играят с 52 карти — по 16 и четири открити карти в талона. Позициите се сменят при всяко раздаване: раздаващият трябва да вземе 3 ръце, следващият — 8, а третият — 5. Играчът за 8 води пръв, взема талона и връща четири скрити карти. Играе се на коз или без коз. Всеки може да пасува само веднъж за целия мач от девет раздавания.</p>
+      <p>Задължително се отговаря на боя. При липса на исканата боя се цака, а при вече изигран коз се надцаква, ако е възможно. Резултатът е взетите ръце минус целта и сборът винаги е нула. От второто раздаване играчите на плюс дават по една карта за всяка плюсова точка на играчите на минус; връща се най-силната по-висока карта от същата боя или получената карта. При без коз няма размяна. Побеждава най-високият общ резултат след девет раздавания.</p>
       <h3>Кръгове: обикновена табла → Гюлбара → Тапа</h3>
       <p>Изберете 1–100 кръга (по три партии). Победителят започва следващата партия, включително при смяна на варианта. Победа носи 1 точка, марс — 2; точките се натрупват между вариантите. Предаването за 1 точка или с марс изисква потвърждение и приемане от противника. То приключва партията, а не целия мач.</p>
       <h3>Гюлбара</h3><p>Всичките 15 пула започват заедно на диагонално противоположни начални позиции. Двата цвята се движат в една посока. Един противников пул затваря позицията; няма удряне. Изваждането е по правилата на обикновената табла. Първите три редовни хвърляния на всеки играч използват обикновени чифтове. От четвъртото му хвърляне чифтът се играе четири пъти, после четири пъти всяка по-висока стойност до шест (3:3 означава четири тройки, четири четворки, четири петици, четири шестици). Ако хвърлилият е изиграл поне един ход от поредицата, но бъде блокиран, противникът поема неизиграните ходове само веднъж. Ако хвърлилият изобщо не може да започне, няма преотстъпване. Ако и противникът бъде блокиран, остатъкът отпада. После противникът хвърля за своя редовен ход; няма допълнително хвърляне за чифт. Връщане е позволено до завършване или преотстъпване на поредицата; преотстъпените местения могат да се връщат до завършването им или до следващото хвърляне.</p>

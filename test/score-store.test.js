@@ -30,3 +30,10 @@ test('multiplayer pairwise rating changes remain zero-sum and duplicate accounts
  const result=store.recordMatch({roomId:'R',category:'rummy',participants:accounts.map((account,index)=>({accountId:account.id,score:3-index}))});
  assert.equal(Math.round(result.changes.reduce((sum,row)=>sum+row.delta,0)),0);assert.deepEqual(result.changes.map(row=>row.place),[1,2,3]);store.close();
 });
+
+test('Santase and Blato have independent rating categories',()=>{
+ const store=createScoreStore(':memory:'),accounts=['A','B','C'].map(name=>store.upsertGoogle({sub:'card-'+name,email:name+'@cards.test',name}));accounts.forEach(account=>store.setApproved(account.id,true));
+ store.recordMatch({roomId:'S',category:'santase',participants:accounts.slice(0,2).map((account,index)=>({accountId:account.id,score:1-index}))});
+ store.recordMatch({roomId:'B',category:'blato',participants:accounts.map((account,index)=>({accountId:account.id,score:1-index}))});
+ assert.deepEqual(new Set(store.scoreboard().map(row=>row.category)),new Set(['santase','blato']));store.close();
+});

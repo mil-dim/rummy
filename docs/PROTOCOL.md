@@ -252,8 +252,8 @@ and the derived `totalGames`. Each next game uses the previous winner as starter
 a new match repeats the opening dice contest. `game.variant` selects the rules.
 
 `rollsBySide` counts regular rolls per side, excluding the opening contest and
-inherited dice. Gulbara ascending doubles apply when the roller's count exceeds
-three. `sequence = {roller,face,started,handedOver}` describes four dice at the
+inherited dice. Gulbara ascending doubles apply from each player's third regular
+roll. `sequence = {roller,face,started,handedOver}` describes four dice at the
 current stage, continuing to six. No giant dice array is sent. A blocked sequence
 transfers its unconsumed dice at most once and only if the roller has moved.
 Blocking again abandons the remainder. The next regular roller is always the

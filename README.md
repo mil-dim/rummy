@@ -63,6 +63,9 @@ opening dice contest. Wins score 1, Mars scores 2. The in-app English/Bulgarian
 rules describe pins and ascending doubles.
 
 Each player sees their own starting point as 24, with checker-color badges.
+Checkers can be dragged with a mouse or touch, while the existing tap controls
+remain available. Dice, card actions and checker moves have locally generated
+sounds with a persistent mute control.
 Concede 1 point or concede Mars asks for confirmation and then the opponent's
 acceptance. It ends only the current game. Permanent Leave game remains separate
 and ends the match. Protocol 13 requires current browser assets after deployment.

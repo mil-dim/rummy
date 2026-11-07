@@ -1,10 +1,35 @@
 import {suggestName} from "./room-names.js";
-import { boardView, variantName } from "./backgammon-view.js";
+import { boardView, moveDestination, variantName } from "./backgammon-view.js";
 import { translateInterface, translateText } from "./i18n.js";
 
 const socket=io(), $=selector=>document.querySelector(selector);
 let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
 function localizeControls(root=document){translateInterface(root,uiLanguage)}
+let soundMuted=localStorage.tabletopMuted==='1',audioContext=null,lastSoundAt={};
+function audio(){
+ if(soundMuted)return null;
+ const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return null;
+ audioContext||=new Audio();if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});return audioContext;
+}
+function soundTone(ctx,frequency,start,duration,{type='sine',gain=.08,endFrequency=frequency}={}){
+ const oscillator=ctx.createOscillator(),volume=ctx.createGain();oscillator.type=type;oscillator.frequency.setValueAtTime(frequency,start);oscillator.frequency.exponentialRampToValueAtTime(Math.max(20,endFrequency),start+duration);
+ volume.gain.setValueAtTime(.0001,start);volume.gain.exponentialRampToValueAtTime(gain,start+.008);volume.gain.exponentialRampToValueAtTime(.0001,start+duration);oscillator.connect(volume).connect(ctx.destination);oscillator.start(start);oscillator.stop(start+duration+.01);
+}
+function playSound(kind){
+ const now=performance.now();if(soundMuted||now-(lastSoundAt[kind]||0)<45)return;lastSoundAt[kind]=now;const ctx=audio();if(!ctx)return;const at=ctx.currentTime+.01;
+ if(kind==='dice'){
+  for(let i=0;i<9;i++)soundTone(ctx,170+i%3*55,at+i*.055,.045,{type:'square',gain:.035,endFrequency:95+i*8});
+  soundTone(ctx,95,at+.48,.12,{type:'triangle',gain:.09,endFrequency:55});soundTone(ctx,145,at+.51,.1,{type:'triangle',gain:.07,endFrequency:75});
+ }else if(kind==='checker'){
+  soundTone(ctx,190,at,.055,{type:'triangle',gain:.11,endFrequency:85});soundTone(ctx,120,at+.035,.06,{type:'square',gain:.04,endFrequency:65});
+ }else{
+  soundTone(ctx,520,at,.075,{type:'triangle',gain:.045,endFrequency:210});soundTone(ctx,760,at+.035,.09,{type:'sine',gain:.035,endFrequency:330});
+ }
+}
+function updateSoundToggle(){const button=$("#soundToggle"),english=soundMuted?'🔇 Muted':'🔊 Sound on';button.textContent=translateText(english,uiLanguage);button.setAttribute('aria-pressed',String(soundMuted));button.lang=uiLanguage}
+document.addEventListener('pointerdown',()=>audio(),{capture:true});
+$("#soundToggle").onclick=()=>{soundMuted=!soundMuted;localStorage.tabletopMuted=soundMuted?'1':'0';updateSoundToggle();if(!soundMuted)playSound('checker')};
+updateSoundToggle();
 let maintenance=null,invitation=null,lobbyPeople=[];
 let signedAccount=null,authConfigured=false;
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
@@ -184,9 +209,23 @@ $("#bgMatchGo").onclick=event=>{
 };
 $("#cardMatchGo").onclick=event=>{event.preventDefault();socket.emit("startGame",{rated:$("#cardRated").checked},response=>{if(response.ok)$("#cardMatchSetup").close();else toast(response.error)})};
 
+function cardStateSignature(game){
+ if(!game||game.kind==='backgammon')return '';
+ return JSON.stringify([game.phase,game.turn,game.stock,game.discard,game.hands,game.melds,game.trick,game.played,game.kitty,game.lastTrick]);
+}
+function announceGameSound(previous,next){
+ const before=previous?.game,after=next?.game;
+ if(!before||!after||previous.id!==next.id||before.kind!==after.kind||before.gameNumber!==after.gameNumber)return;
+ if(after.kind==='backgammon'){
+  if(Number(after.rollNumber||0)!==Number(before.rollNumber||0))playSound('dice');
+  else if(Number(after.moveNumber||0)!==Number(before.moveNumber||0))playSound('checker');
+ }else if(cardStateSignature(before)!==cardStateSignature(after))playSound('card');
+}
+
 function showRoom(next){
  if(!me){pendingRoom=next;return}
  if(Number(next.protocolVersion)>13){toast("This client is too old. Refresh the page.");return}
+ const previousRoom=room;announceGameSound(previousRoom,next);
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -450,6 +489,34 @@ function renderRummy(game){
 const checkerStack=point=>point.count?`<span class="checker-stack">${point.pinned!==undefined?`<i class="checker pinned-checker side-${Number(point.pinned)}" style="--stack:0" aria-label="Pinned checker"></i>`:""}${Array.from({length:Math.min(Number(point.count),5)},(_,index)=>`<i class="checker side-${Number(point.owner)}" style="--stack:${index+(point.pinned!==undefined?0.5:0)}"></i>`).join("")}${point.count>5?`<b class="checker-count">${Number(point.count)}</b>`:""}</span>`:"";
 const bgPoint=(game,index,edge,view)=>`<button class="bg-point ${edge}" data-point="${index}" aria-label="Point ${view.label(index)}, ${Number(game.points[index].count)} checkers${game.points[index].pinned!==undefined?", pinned checker":""}"><span class="triangle"></span><small>${view.label(index)}</small>${checkerStack(game.points[index])}</button>`;
 const dieHtml=(die,{index=null,disabled=true,used=false}={})=>`<button class="die face-${Number(die)} ${used?"die-used":""}" ${index===null?"":`data-die="${index}"`} ${disabled?"disabled":""} aria-label="Die ${Number(die)}${used?", used":""}">${Array.from({length:Number(die)},()=>"<i></i>").join("")}</button>`;
+function enableCheckerDragging(game,mySide,legal){
+ if(mySide<0||!legal.length)return;
+ const moves=legal.map(move=>({...move,to:moveDestination(game,move,mySide)}));
+ const sourceKey=move=>String(move.from),sourceButtons=new Map();
+ for(const move of moves){
+  const button=move.from==='bar'?document.querySelector(`[data-bar="${mySide}"]`):document.querySelector(`[data-point="${move.from}"]`);
+  if(!button)continue;button.disabled=false;button.classList.add('checker-drag-source');sourceButtons.set(sourceKey(move),button);
+ }
+ for(const [from,button] of sourceButtons)button.addEventListener('pointerdown',event=>{
+  if(event.button!==0||!event.target.closest('.checker-stack,.bar-checkers'))return;
+  const candidates=moves.filter(move=>sourceKey(move)===from);if(!candidates.length)return;
+  event.preventDefault();button.setPointerCapture?.(event.pointerId);button.classList.add('dragging-checker');
+  const targets=new Map();for(const move of candidates){
+   const target=move.to==='off'?document.querySelector(`[data-off="${mySide}"]`):document.querySelector(`[data-point="${move.to}"]`);
+   if(target){target.classList.add('checker-drop-target');targets.set(target,move)}
+  }
+  const ghost=document.createElement('i');ghost.className=`checker checker-drag-ghost side-${mySide}`;document.body.append(ghost);
+  const place=pointer=>{ghost.style.left=`${pointer.clientX}px`;ghost.style.top=`${pointer.clientY}px`};place(event);
+  const movePointer=pointer=>place(pointer);
+  const cleanup=()=>{
+   button.removeEventListener('pointermove',movePointer);button.removeEventListener('pointerup',finish);button.removeEventListener('pointercancel',cancel);
+   button.classList.remove('dragging-checker');for(const target of targets.keys())target.classList.remove('checker-drop-target');ghost.remove();
+  };
+  const finish=pointer=>{const match=[...targets].find(([target])=>{const box=target.getBoundingClientRect();return pointer.clientX>=box.left&&pointer.clientX<=box.right&&pointer.clientY>=box.top&&pointer.clientY<=box.bottom}),move=match?.[1];cleanup();if(move)act({type:'move',from:move.from,dieIndex:move.dieIndex})};
+  const cancel=()=>cleanup();
+  button.addEventListener('pointermove',movePointer);button.addEventListener('pointerup',finish);button.addEventListener('pointercancel',cancel);
+ });
+}
 function renderBackgammon(game){
  const watching=room.role==="watcher";
  const turn=game.players[game.turn]===me.id,active=turn&&!game.winner&&!game.resignationOffer;
@@ -457,7 +524,7 @@ function renderBackgammon(game){
  const {top,bottom}=view;
  const row=(ids,edge)=>`${ids.slice(0,6).map(index=>bgPoint(game,index,edge,view)).join("")}<div class="bar-space" aria-hidden="true"></div>${ids.slice(6).map(index=>bgPoint(game,index,edge,view)).join("")}`;
  const barSide=side=>`<button class="bar-zone side-${side}" data-bar="${side}" aria-label="${side===0?"White":"Red"} hit checkers: ${Number(game.bar[side])}"><span>${side===0?"White":"Red"}</span><div class="bar-checkers">${Array.from({length:Math.min(game.bar[side],5)},()=>`<i class="checker side-${side}"></i>`).join("")}</div><b>${Number(game.bar[side])}</b></button>`;
- const offSide=side=>`<div class="off-group side-${side}" aria-label="${side===0?"White":"Red"} borne off: ${Number(game.borneOff[side])}"><span>${side===0?"White":"Red"}</span><div class="off-checkers">${Array.from({length:game.borneOff[side]},()=>`<i class="off-checker side-${side}"></i>`).join("")}</div><b>${Number(game.borneOff[side])}</b></div>`;
+ const offSide=side=>`<div class="off-group side-${side}" data-off="${side}" aria-label="${side===0?"White":"Red"} borne off: ${Number(game.borneOff[side])}"><span>${side===0?"White":"Red"}</span><div class="off-checkers">${Array.from({length:game.borneOff[side]},()=>`<i class="off-checker side-${side}"></i>`).join("")}</div><b>${Number(game.borneOff[side])}</b></div>`;
  const opening=game.phase==="opening";
  const rotating=room.match?.variantMode!=="normal";
  const progress=`${variantName(game.variant)}${rotating?` · Round ${Math.ceil(game.gameNumber/3)} of ${room.match?.roundCount||Math.ceil((room.match?.totalGames||3)/3)}`:""} · Game ${game.gameNumber} of ${room.match?.totalGames||3}${room.match?.rated?" · Rated":""}`;
@@ -478,7 +545,7 @@ function renderBackgammon(game){
  ${game.sequence&&!game.winner?`<p class="notice sequence-status"><span>${game.sequence.handedOver?"Inherited doubles":"Ascending doubles"}</span>: ${game.sequence.face} → 6 · <span>Original roller</span>: ${playerName(game.players[game.sequence.roller])}</p>`:""}
  ${historyHtml}
  <div class="backgammon-layout"><div class="backgammon-wrap"><div class="backgammon-board"><div class="bg-row top">${row(top,"top")}</div><div class="bg-row bottom">${row(bottom,"bottom")}</div><div class="center-bar" aria-label="Bar — hit checkers">${game.variant==="normal"||!game.variant?barSide(1-Math.max(0,mySide))+barSide(Math.max(0,mySide)):""}</div></div></div><aside class="off-tray" aria-label="Borne-off checkers"><strong>Off board</strong>${offSide(1-Math.max(0,mySide))}${offSide(Math.max(0,mySide))}</aside></div>
- <p class="board-hint">${game.variant==="gulbara"?"Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first three rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.":game.variant==="tapa"?"Tapa: landing on a lone opposing checker pins it until released. Pinning the last checker on its starting point wins Mars immediately.":"Normal backgammon: hit checkers must re-enter from the center bar first."} <span>${watching?"Watching from White’s side. Moves are read-only.":"Your starting point is 24; bear off beyond point 1. Choose a die, then a highlighted point."}</span></p>`;
+ <p class="board-hint">${game.variant==="gulbara"?"Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first two rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.":game.variant==="tapa"?"Tapa: landing on a lone opposing checker pins it until released. Pinning the last checker on its starting point wins Mars immediately.":"Normal backgammon: hit checkers must re-enter from the center bar first."} <span>${watching?"Watching from White’s side. Moves are read-only.":"Your starting point is 24; bear off beyond point 1. Drag a checker, or choose a die then a highlighted point."}</span></p>`;
  document.querySelectorAll('[data-concede]').forEach(button=>button.onclick=()=>{const points=Number(button.dataset.concede);if(confirm(translateText(points===1?"Offer to concede this game for 1 point?":"Offer to concede this game for 2 points (Mars)?",uiLanguage)))act({type:"offerResignation",points})});
  $("#acceptResign")?.addEventListener("click",()=>act({type:"acceptResignation"}));
  $("#declineResign")?.addEventListener("click",()=>act({type:"declineResignation"}));
@@ -494,6 +561,7 @@ function renderBackgammon(game){
  document.querySelectorAll("[data-die]").forEach(button=>button.onclick=()=>chooseDie(Number(button.dataset.die)));
  document.querySelectorAll("[data-point]").forEach(button=>button.onclick=()=>{if(die!==null)act({type:"move",from:Number(button.dataset.point),dieIndex:die})});
  document.querySelectorAll("[data-bar]").forEach(button=>button.onclick=()=>{if(die!==null)act({type:"move",from:"bar",dieIndex:die})});
+ enableCheckerDragging(game,mySide,legal);
  $("#roll")?.addEventListener("click",()=>act({type:"roll"}));
  $("#bgUndo")?.addEventListener("click",()=>act({type:"undo"}));
 }
@@ -503,6 +571,7 @@ $("#uiLanguage").onchange=()=>{
  uiLanguage=$("#uiLanguage").value==="bg"?"bg":"en";
  localStorage.uiLanguage=uiLanguage;renderMaintenance();
  localizeControls();
+ updateSoundToggle();
  renderBackgammonFormat();
  document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 };

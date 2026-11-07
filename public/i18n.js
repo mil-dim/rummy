@@ -109,8 +109,8 @@ const labels = {
  'Pinned checker':'Затиснат пул',
  'Ascending doubles':'Възходящи чифтове', 'Inherited doubles':'Преотстъпени ходове от чифт', 'Original roller':'Хвърлил чифтовете',
  'Normal backgammon: hit checkers must re-enter from the center bar first.':'Обикновена табла: ударените пулове трябва първо да влязат от средната преграда.',
- 'Your starting point is 24; bear off beyond point 1. Choose a die, then a highlighted point.':'Вашата начална позиция е 24; изваждате след позиция 1. Изберете зар, после осветена позиция.',
- 'Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first three rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.':'Гюлбара: двата цвята се движат в една посока. Един противников пул затваря позицията. След първите ви три хвърляния чифтовете се изиграват възходящо до шест; неизиграните ходове се преотстъпват само веднъж и само ако сте започнали поредицата.',
+ 'Your starting point is 24; bear off beyond point 1. Drag a checker, or choose a die then a highlighted point.':'Вашата начална позиция е 24; изваждате след позиция 1. Плъзнете пул или изберете зар, после осветена позиция.',
+ 'Gulbara: both colors move in the same direction. One opposing checker blocks a point. After your first two rolls, doubles continue upwards to six; unused moves transfer once only if you started the sequence.':'Гюлбара: двата цвята се движат в една посока. Един противников пул затваря позицията. След първите ви две хвърляния чифтовете се изиграват възходящо до шест; неизиграните ходове се преотстъпват само веднъж и само ако сте започнали поредицата.',
  'Tapa: landing on a lone opposing checker pins it until released. Pinning the last checker on its starting point wins Mars immediately.':'Тапа: самотен противников пул се затиска до освобождаването му. Затискането на последния пул на началната му позиция веднага печели марс.',
  'Respond to the concession offer before continuing play.':'Отговорете на предложението за предаване, преди да продължите.',
 
@@ -157,6 +157,7 @@ const labels = {
  'Bar — hit checkers':'Преграда — ударени пулове', 'Borne-off checkers':'Извадени пулове',
  'White moves toward point 1; red toward point 24. Choose a die, then a highlighted point. Hit checkers must re-enter from the center bar first. Undo steps back one move at a time until the final dice move. On doubles, the fourth move commits the turn. If blocked early, undo remains available until the opponent rolls.':'Белите се движат към позиция 1, червените — към позиция 24. Изберете зар, после осветена позиция. Ударените пулове трябва първо да влязат от средната преграда. Можете да връщате местенията едно по едно преди последното. При чифт четвъртото местене потвърждава хода. Ако няма повече възможни ходове, връщането е достъпно до хвърлянето на противника.',
  'An update is available.':'Има налично обновяване.',
+ '🔊 Sound on':'🔊 Звукът е включен','🔇 Muted':'🔇 Без звук',
  'Leave permanently and forfeit this game? In Rummy, the remaining players finish this hand, then start a new match.':'Да напуснете ли окончателно със служебна загуба? При реми останалите довършват партията, след което започват нов мач.',
  'Leave permanently and forfeit this game? The current match will end.':'Да напуснете ли окончателно със служебна загуба? Текущият мач ще приключи.',
  'Leave this table permanently?':'Да напуснете ли тази маса окончателно?',

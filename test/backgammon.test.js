@@ -75,11 +75,11 @@ test('bar entry is mandatory and hitting moves exactly one opponent checker to t
 
 test('first move undo restores hits, bar, dice and turn; second move commits',()=>{
   const g=position();put(g,6,0);put(g,5,1);const before=structuredClone(g);
-  move(g,6,0);assert.equal(g.bar[1],1);assert.equal(publicBackgammon(g,'p1').canUndo,true);
+  move(g,6,0);assert.equal(g.bar[1],1);assert.equal(g.moveNumber,1);assert.equal(publicBackgammon(g,'p1').canUndo,true);
   assert.equal(publicBackgammon(g,'p2').canUndo,false);
   assert.throws(()=>backgammonAction(g,'p2',{type:'undo'}),/No move can be undone/);
   backgammonAction(g,'p1',{type:'undo'});assert.deepEqual(g,before);
-  move(g,6,0);move(g,5,1);
+  move(g,6,0);move(g,5,1);assert.equal(g.moveNumber,2);
   assert.equal(publicBackgammon(g,'p1').canUndo,false);
   assert.throws(()=>backgammonAction(g,'p1',{type:'undo'}),/No move can be undone/);
 });

@@ -128,6 +128,7 @@ header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 .color-seat{display:flex;align-items:center;gap:6px;padding:8px;border:2px solid transparent;border-radius:10px}
 .current-seat{border-color:var(--green);background:var(--paper)}
 .pinned-checker{outline:3px dashed #252c75;outline-offset:1px}
+.checker-drag-source{touch-action:none}.bg-point.checker-drag-source:not(.checker-drop-target){box-shadow:none}.bar-zone.checker-drag-source:not(.checker-drop-target){outline:0}.checker-drag-source .checker-stack,.checker-drag-source .bar-checkers{cursor:grab}.dragging-checker .checker-stack,.dragging-checker .bar-checkers{opacity:.45;cursor:grabbing}.checker-drop-target{box-shadow:inset 0 0 0 5px #2f8f4e!important;background:#8bd59a55!important}.off-group.checker-drop-target{outline:5px solid #8bd59a;outline-offset:2px}.checker-drag-ghost{position:fixed!important;z-index:100;pointer-events:none;transform:translate(-50%,-50%)!important;opacity:.9}
 .concession{margin:12px 0}.concession p{margin:0}
 
 .member-name{display:inline-block;margin-right:6px}.room-members,.room-watchers{font-size:14px;overflow-wrap:anywhere}

@@ -16,6 +16,7 @@ try{
  assert.equal(await a.locator('#name').getAttribute('placeholder'),'Вашето име');
  assert.equal(await a.locator('html').getAttribute('lang'),'bg');
  assert.equal(await a.locator('#leaveGame').innerText(),'Напусни играта');
+ assert.equal(await a.locator('#soundToggle').innerText(),'🔊 Звукът е включен');await a.locator('#soundToggle').click();assert.equal(await a.locator('#soundToggle').innerText(),'🔇 Без звук');assert.equal(await a.evaluate(()=>localStorage.tabletopMuted),'1');await a.locator('#soundToggle').click();
  await a.locator('#uiLanguage').selectOption('en');assert.equal(await a.locator('#newRoom').innerText(),'New room');
  await a.locator('#uiLanguage').selectOption('bg');
  await a.locator('#newRoom').click();await a.locator('#createName').fill('Your hand');await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();assert.equal(await a.locator('#bgVariantMode').inputValue(),'normal');assert.equal(await a.locator('#bgCountLabel').innerText(),'Брой партии');await a.locator('#bgVariantMode').selectOption('rotate');assert.equal(await a.locator('#bgCountLabel').innerText(),'Брой кръгове');await a.locator('#bgMatchGo').click();
@@ -29,8 +30,16 @@ try{
  await a.locator('#uiLanguage').selectOption('bg');
  await a.locator('#roll').click();await b.locator('#roll').click();await a.waitForFunction(()=>document.querySelectorAll('.roll-history li').length===2);
  const lines=await a.locator('.roll-history li').allTextContents();assert.equal(lines.length,2);assert.match(lines[0],/#2/);assert.match(lines[1],/#1/);
+ let mover=null;for(let attempt=0;attempt<8&&!mover;attempt++){
+  for(const page of [a,b])if(await page.locator('#roll:enabled').isVisible().catch(()=>false))await page.locator('#roll:enabled').click();
+  for(const page of [a,b])if(await page.locator('.checker-drag-source').first().isVisible().catch(()=>false)){mover=page;break}
+ }
+ assert.ok(mover,'a player should have draggable legal checkers');const source=mover.locator('.checker-drag-source .checker').first(),sourceBox=await source.boundingBox();assert.ok(sourceBox);const sourceInfo=await source.evaluate(element=>{const button=element.closest('button');return {point:button.dataset.point??null,bar:button.dataset.bar??null,label:button.getAttribute('aria-label')}});
+ await mover.mouse.move(sourceBox.x+sourceBox.width/2,sourceBox.y+sourceBox.height/2);await mover.mouse.down();await mover.locator('.checker-drop-target').first().waitFor();const targetBox=await mover.locator('.checker-drop-target').first().boundingBox();assert.ok(targetBox);await mover.mouse.move(targetBox.x+targetBox.width/2,targetBox.y+targetBox.height/2,{steps:5});await mover.mouse.up();
+ await mover.waitForFunction(info=>{const selector=info.point!==null?`[data-point="${info.point}"]`:`[data-bar="${info.bar}"]`;return document.querySelector(selector)?.getAttribute('aria-label')!==info.label},sourceInfo);
+ const persistedLines=await a.locator('.roll-history li').allTextContents();
  const token=await a.evaluate(()=>{localStorage.setItem('rummyOrder:keep','["saved-card"]');return localStorage.token});
- await a.reload();await a.locator('.roll-history').waitFor();assert.equal(await a.locator('#uiLanguage').inputValue(),'bg');assert.deepEqual(await a.locator('.roll-history li').allTextContents(),lines);assert.equal(await a.evaluate(()=>localStorage.token),token);
+ await a.reload();await a.locator('.roll-history').waitFor();assert.equal(await a.locator('#uiLanguage').inputValue(),'bg');assert.deepEqual(await a.locator('.roll-history li').allTextContents(),persistedLines);assert.equal(await a.evaluate(()=>localStorage.token),token);
 
  // Opponent sees its own starting pair at display point 24, with physical IDs intact.
  assert.equal(await a.locator('.bg-row.top [data-point]').last().getAttribute('data-point'),'23');

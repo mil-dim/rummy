@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newBackgammon,backgammonAction,legalBackgammonMoves,publicBackgammon,pointRank,physicalPoint} from '../lib/backgammon.js';
 import {backgammonVariant,startBackgammonMatch,recordBackgammonResult} from '../lib/backgammon-match.js';
-import {boardView} from '../public/backgammon-view.js';
+import {boardView,moveDestination} from '../public/backgammon-view.js';
 import {diceRandom} from '../lib/dice.js';
 const players=[{id:'w'},{id:'r'}];
 const action=(g,type,extra={},side=g.turn)=>backgammonAction(g,g.players[side],{type,...extra});
@@ -55,6 +55,10 @@ test('variant setups and perspective coordinates retain authoritative point IDs'
  }
  const g=newBackgammon(players,{variant:'gulbara'});
  assert.equal(g.points[23].count,15);assert.equal(g.points[11].count,15);
+ g.dice=[3];assert.equal(moveDestination(g,{from:23,dieIndex:0},0),20);assert.equal(moveDestination(g,{from:11,dieIndex:0},1),8);
+ const normal=newBackgammon(players,{variant:'normal',starter:'w'});normal.dice=[6];
+ assert.equal(moveDestination(normal,{from:23,dieIndex:0},0),17);assert.equal(moveDestination(normal,{from:0,dieIndex:0},1),6);
+ normal.dice=[1];assert.equal(moveDestination(normal,{from:0,dieIndex:0},0),'off');
 });
 
 test('Tapa pins, cannot move a pinned checker, releases it and restores pins on undo',()=>{
@@ -100,19 +104,19 @@ test('Gulbara red bearing off uses its own home and oversized-die rule',()=>{
  action(g,'move',{from:17,dieIndex:0});assert.equal(g.borneOff[1],14);
 });
 
-test('Gulbara first three rolls per player are ordinary; fourth own roll activates ascending doubles',t=>{
+test('Gulbara first two rolls per player are ordinary; third own roll activates ascending doubles',t=>{
  roll(t,[3,3,3,3,3,3]);
  const g=newBackgammon(players,{variant:'gulbara',starter:'w'});
- g.rollsBySide=[2,0];action(g,'roll');assert.equal(g.sequence,null);assert.equal(g.rollsBySide[0],3);
+ g.rollsBySide=[1,0];action(g,'roll');assert.equal(g.sequence,null);assert.equal(g.rollsBySide[0],2);
  // New controlled turn, keeping this side's roll counter.
  g.phase='roll';g.dice=[];g.used=[];action(g,'roll');
- assert.equal(g.rollsBySide[0],4);assert.equal(g.sequence.face,3);
+ assert.equal(g.rollsBySide[0],3);assert.equal(g.sequence.face,3);
  assert.deepEqual(g.dice,[3,3,3,3]);assert.equal(g.rollsBySide[1],0);
  g.phase='roll';g.turn=1;g.sequence=null;g.dice=[];g.used=[];action(g,'roll');assert.equal(g.sequence,null);
 });
 
 test('ascending 3:3 plays four threes, fours, fives and sixes then opponent rolls normally',t=>{
- roll(t,[3,3]);const g=newBackgammon(players,{variant:'gulbara',starter:'w'});g.rollsBySide[0]=3;
+ roll(t,[3,3]);const g=newBackgammon(players,{variant:'gulbara',starter:'w'});g.rollsBySide[0]=2;
  // Keep opponent clear of the white path while testing the whole sequence.
  g.points[11]={owner:null,count:0};put(g,12,1,15);action(g,'roll');
  const played=[];
@@ -126,7 +130,7 @@ test('ascending 3:3 plays four threes, fours, fives and sixes then opponent roll
 });
 
 test('partially blocked doubles transfer remaining dice once, then recipient gets own roll',t=>{
- roll(t,[3,3,1,2]);const g=empty('gulbara',[]);g.phase='roll';g.rollsBySide[0]=3;
+ roll(t,[3,3,1,2]);const g=empty('gulbara',[]);g.phase='roll';g.rollsBySide[0]=2;
  put(g,10,0);put(g,4,1,15);put(g,23,0,14);
  // Block other white sources and leave exactly one initial move.
  put(g,20,1);action(g,'roll');action(g,'move',{from:10,dieIndex:0});
@@ -140,9 +144,9 @@ test('partially blocked doubles transfer remaining dice once, then recipient get
 
 test('a completely blocked initial double never transfers and inherited blocking never transfers back',t=>{
  roll(t,[3,3,3,3]);
- const g=empty('gulbara',[]);g.phase='roll';g.rollsBySide[0]=3;put(g,10,0);put(g,7,1);
+ const g=empty('gulbara',[]);g.phase='roll';g.rollsBySide[0]=2;put(g,10,0);put(g,7,1);
  action(g,'roll');assert.equal(g.turn,1);assert.equal(g.phase,'roll');assert.equal(g.sequence,null);assert.equal(g.points[7].count,1);
- const h=empty('gulbara',[]);h.phase='roll';h.rollsBySide[0]=3;put(h,10,0);put(h,4,1);put(h,1,0);
+ const h=empty('gulbara',[]);h.phase='roll';h.rollsBySide[0]=2;put(h,10,0);put(h,4,1);put(h,1,0);
  action(h,'roll');action(h,'move',{from:10,dieIndex:0});
  assert.equal(h.turn,1);assert.equal(h.phase,'roll');assert.equal(h.sequence,null);assert.equal(h.points[4].owner,1);
 });

@@ -95,20 +95,24 @@ the other player leads. A 65-65 deal records no points and repeats the dealer.
 
 ## Blato (3-5-8)
 
-A Blato match has nine deals. `targets` rotates 8, 5 and 3 with the dealer.
-Actions are `{type:"bid",contract}` where contract is a suit, `NT`, or `PASS`;
-`{type:"exchange",cardId}`; `{type:"discardKitty",cardIds:[four ids]}`; and
-`{type:"play",cardId}`. Each player may use PASS once per match. Three passes
-redeal without advancing the deal number.
+A Blato match has nine deals. On deal one, `{type:"cut"}` draws a public card for
+each player. High receives target 8, low receives 3, and the other player receives
+5. Only tied players redraw. Targets then rotate clockwise on each deal.
 
-From the second deal, previous positive scores produce a server-managed exchange
-queue against previous negative scores. The giver chooses a card; the server
-returns the receiver's strongest higher card of that suit or returns the given
-card. No exchange occurs in no-trump. The four talon cards are public; the
-8-player takes them and returns four cards whose identities remain private.
+The dealt hands remain hidden even from their owners until the 8-player sends
+`{type:"declareTrump",suit}`. There is no bidding, pass or no-trump contract.
+From deal two, positive scores produce a private pull queue against negative
+scores. Larger positive scores act first. `{type:"pull",cardIds}` submits the
+entire batch at once, from zero through the allowed maximum; zero forgives that
+pull. Trump cards are forbidden. The receiver automatically returns the highest
+card held in each requested suit, which may be lower or the same when no higher
+card exists. Only the two involved players receive card identities.
 
-Players must follow suit. In a suit contract they must trump when void and
-overtrump when possible. `scores[side]` is tricks minus target and sums to zero.
+After all pulls, the four-card talon becomes public and is added to the 8-player's
+hand. `{type:"discardKitty",cardIds:[four ids]}` discards four identities privately.
+`{type:"play",cardId}` plays a card. Following the led suit is mandatory; beating,
+trumping when void, and overtrumping are currently optional. `scores[side]` is
+tricks minus target and sums to zero.
 The final cumulative totals feed the separate Blato rating category. Public
 projections show only the viewer's hand; watcher hands are all counts.
 

@@ -47,7 +47,7 @@ const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
-const PROTOCOL_VERSION = 12;
+const PROTOCOL_VERSION = 13;
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -643,8 +643,8 @@ io.on("connection", socket => {
         : room.gameType === "backgammon" ? newBackgammon(room.players, { gameNumber: room.gameNumber, starter,
           variant: backgammonVariant(room.gameNumber, room.match?.variantMode) })
         : room.gameType === "santase" ? newSantase(room.players,{gameNumber:room.gameNumber,dealer:room.match.dealer})
-        : newBlato(room.players,{gameNumber:room.gameNumber,dealer:(room.gameNumber-1)%3,
-          previousScores:room.match.previousScores,passesUsed:room.match.passesUsed});
+        : newBlato(room.players,{gameNumber:room.gameNumber,targets:room.match.nextTargets,
+          previousScores:room.match.previousScores});
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {

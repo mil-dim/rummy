@@ -65,15 +65,15 @@ rules describe pins and ascending doubles.
 Each player sees their own starting point as 24, with checker-color badges.
 Concede 1 point or concede Mars asks for confirmation and then the opponent's
 acceptance. It ends only the current game. Permanent Leave game remains separate
-and ends the match. Protocol 12 requires current browser assets after deployment.
+and ends the match. Protocol 13 requires current browser assets after deployment.
 
 ## Santase and Blato
 
 Santase is a two-player match to 11 points with the Bulgarian 24-card rules,
 20/40 announcements, trump-nine exchange, talon closing and 1/2/3-point deal
-scoring. Blato is a three-player, nine-deal match with rotating 8/5/3 targets,
-the four-card talon, trump/no-trump bidding, one pass per player per match and
-the plus/minus card exchange between deals. Both games are server-authoritative,
+scoring. Blato is a three-player, nine-deal match with an opening cut for the
+8/5/3 targets, clockwise target rotation, trump declared by the 8-player before
+hands open, private optional pulling and the public four-card talon. Both games are server-authoritative,
 support casual or rated matches, and hide hands from opponents and watchers.
 
 ## Optional Google sign-in and ratings

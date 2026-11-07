@@ -11,6 +11,6 @@ test('Santase match accumulates to eleven and carries the winning dealer',()=>{
 
 test('Blato records zero-sum deals and finishes after nine',()=>{
  const r={players:[{id:'a'},{id:'b'},{id:'c'}],formerPlayers:[]};startBlatoMatch(r);
- for(let number=1;number<=9;number++){r.game={kind:'blato',gameNumber:number,players:['a','b','c'],finished:true,winner:'a',scores:[1,0,-1],passesUsed:[true,false,false]};recordBlatoResult(r)}
- assert.deepEqual(r.match.cumulative,{a:9,b:0,c:-9});assert.equal(r.match.finished,true);assert.deepEqual(r.match.passesUsed,[true,false,false]);
+ let targets=[8,5,3];for(let number=1;number<=9;number++){r.game={kind:'blato',gameNumber:number,players:['a','b','c'],targets,finished:true,winner:'a',scores:[1,0,-1]};recordBlatoResult(r);targets=r.match.nextTargets}
+ assert.deepEqual(r.match.cumulative,{a:9,b:0,c:-9});assert.equal(r.match.finished,true);assert.deepEqual(r.match.nextTargets,[8,5,3]);
 });

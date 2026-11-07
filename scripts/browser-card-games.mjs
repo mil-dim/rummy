@@ -20,9 +20,17 @@ try{
  await c.locator('#newRoom').click();await c.locator('#gameType').selectOption('blato');assert.equal(await c.locator('#maxPlayers').inputValue(),'3');assert.equal(await c.locator('#maxPlayers').isDisabled(),true);await c.locator('#createName').fill('Blato table');await c.locator('#createGo').click();
  for(const page of [d,e])await page.locator('.roomCard').filter({has:page.getByRole('heading',{name:'Blato table'})}).locator('[data-join]').click();
  await c.locator('#players').filter({hasText:'Eli'}).waitFor();await c.locator('#start').click();assert.equal(await c.locator('#cardMatchTitle').innerText(),'Blato match');await c.locator('#cardMatchGo').click();
- await d.locator('[data-contract="♥"]').waitFor();await d.locator('[data-contract="♥"]').click();await d.locator('.trick-game').filter({hasText:'Public talon'}).waitFor();
- const kitty=d.locator('.trick-game section').filter({hasText:'Public talon'}).locator('[data-trick-card]:not([disabled])');assert.equal(await kitty.count(),4);for(let index=0;index<4;index++)await kitty.nth(index).click();await d.locator('#discardKitty').click();await d.locator('.blato-hand').waitFor();
- await d.locator('.blato-hand [data-trick-card]:not([disabled])').first().click();await c.locator('.trick-table .card-row .playing-card').first().waitFor();
- await d.setViewportSize({width:390,height:844});assert.equal(await d.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);
- console.log('PASS: Santase and Blato room setup, private hands, spectator view, bidding, talon selection, play and mobile layout');
+ for(let round=0;round<12;round++){
+  let clicked=false;for(const page of [c,d,e])if(await page.locator('#cutBlato').isVisible().catch(()=>false)){
+   clicked=await page.locator('#cutBlato').click({timeout:2000}).then(()=>true).catch(()=>false)||clicked;await page.waitForTimeout(75);
+  }
+  if(!clicked&&!await Promise.all([c,d,e].map(page=>page.locator('#cutBlato').isVisible().catch(()=>false))).then(values=>values.some(Boolean)))break;
+ }
+ let declarer;for(const page of [c,d,e])if(await page.locator('[data-trump="♥"]').isVisible().catch(()=>false)){declarer=page;break}
+ assert.ok(declarer);await declarer.locator('[data-trump="♥"]').click();await declarer.locator('.trick-game').filter({hasText:'Public talon'}).waitFor();
+ assert.equal(await declarer.locator('.trick-game section').filter({hasText:'Public talon'}).locator('[data-trick-card]').count(),4);
+ const hand=declarer.locator('.blato-hand [data-trick-card]:not([disabled])');assert.equal(await hand.count(),20);for(let index=0;index<4;index++)await hand.nth(index).click();await declarer.locator('#discardKitty').click();await declarer.locator('.blato-hand').waitFor();
+ await declarer.locator('.blato-hand [data-trick-card]:not([disabled])').first().click();await c.locator('.trick-table .card-row .playing-card').first().waitFor();
+ await declarer.setViewportSize({width:390,height:844});assert.equal(await declarer.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);
+ console.log('PASS: Santase and Blato room setup, private hands, opening cut, trump, talon selection, play and mobile layout');
 }finally{await browser?.close();server?.kill()}

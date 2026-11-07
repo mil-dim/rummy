@@ -24,11 +24,17 @@ test('Santase and Blato rooms enforce seats, privacy, spectators and server acti
  const blato=await send(a,'createRoom',{name:'Mud',gameType:'blato'});assert.equal(blato.ok,true);assert.equal(a.room.maxPlayers,3);
  assert.equal((await send(b,'joinRoom',{id:blato.id})).ok,true);assert.equal((await send(c,'joinRoom',{id:blato.id})).ok,true);assert.equal((await send(watcher,'watchRoom',{id:blato.id})).ok,true);
  const blatoStarted=event(watcher,'room',room=>room.game?.kind==='blato');assert.equal((await send(a,'startGame',{})).ok,true);await blatoStarted;
- assert.deepEqual(watcher.room.game.hands,[{count:16},{count:16},{count:16}]);assert.equal(watcher.room.game.phase,'bid');
- const bidder=[a,b,c].find(socket=>socket.identity.player.id===b.room.game.players[b.room.game.turn]);
- const kitty=event(watcher,'room',room=>room.game?.phase==='kitty');assert.equal((await send(bidder,'action',{type:'bid',contract:'♥'})).ok,true);await kitty;assert.equal(watcher.room.game.kitty.length,4);
+ assert.deepEqual(watcher.room.game.hands,[{count:0},{count:0},{count:0}]);assert.equal(watcher.room.game.phase,'cut');
+ for(let round=0;round<10&&watcher.room.game.phase==='cut';round++)for(const socket of [a,b,c]){
+  const side=watcher.room.game.players.indexOf(socket.identity.player.id);
+  if(watcher.room.game.phase==='cut'&&watcher.room.game.cutCandidates.includes(side)&&!watcher.room.game.cutCards[side]){assert.equal((await send(socket,'action',{type:'cut'})).ok,true);await new Promise(resolve=>setTimeout(resolve,10))}
+ }
+ assert.equal(watcher.room.game.phase,'declareTrump');
+ assert.deepEqual(watcher.room.game.hands,[{count:16},{count:16},{count:16}]);
+ const bidder=[a,b,c].find(socket=>socket.identity.player.id===watcher.room.game.players[watcher.room.game.eightSide]);
+ const kitty=event(watcher,'room',room=>room.game?.phase==='kitty');assert.equal((await send(bidder,'action',{type:'declareTrump',suit:'♥'})).ok,true);await kitty;assert.equal(watcher.room.game.kitty.length,4);
  const eight=[a,b,c].find(socket=>socket.identity.player.id===a.room.game.players[a.room.game.eightSide]);
- const own=eight.room.game.hands[eight.room.game.players.indexOf(eight.identity.player.id)],ids=[...own.slice(0,2),...eight.room.game.kitty.slice(0,2)].map(card=>card.id);
+ const own=eight.room.game.hands[eight.room.game.players.indexOf(eight.identity.player.id)],ids=own.slice(0,4).map(card=>card.id);
  const playing=event(watcher,'room',room=>room.game?.phase==='play');assert.equal((await send(eight,'action',{type:'discardKitty',cardIds:ids})).ok,true);await playing;
  assert.deepEqual(watcher.room.game.hands,[{count:16},{count:16},{count:16}]);assert.equal(watcher.room.game.discarded.count,4);
 });

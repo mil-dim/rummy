@@ -186,7 +186,7 @@ $("#cardMatchGo").onclick=event=>{event.preventDefault();socket.emit("startGame"
 
 function showRoom(next){
  if(!me){pendingRoom=next;return}
- if(Number(next.protocolVersion)>12){toast("This client is too old. Refresh the page.");return}
+ if(Number(next.protocolVersion)>13){toast("This client is too old. Refresh the page.");return}
  const previousGame=room?.game?.gameNumber;
  const changedRoom=room?.id!==next.id;
  room=next;
@@ -245,32 +245,36 @@ function renderSantase(game){
 }
 
 function renderBlato(game){
- const watching=room.role==='watcher',side=game.players.indexOf(me.id),mine=side>=0&&game.turn===side&&!game.finished;
- const hand=Array.isArray(game.hands[side])?game.hands[side]:[],legal=new Set(game.legalCardIds||[]),chosen=hand.find(card=>selected.has(card.id));
- const seats=game.players.map((id,index)=>`${playerName(id)}: target ${Number(game.targets[index])}, tricks ${Number(game.tricks[index])}${game.scores?`, ${signedPoints(game.scores[index])}`:''}`).join(' · ');
- const phaseName={bid:'Choose contract',exchange:'Card exchange',kitty:'Take the talon and return four cards',play:'Play',finished:'Deal complete'}[game.phase]||game.phase;
- const kittyCards=game.phase==='kitty'&&Array.isArray(game.kitty)?game.kitty:[];
- const selectableKitty=new Set(kittyCards.map(card=>card.id));
+ const watching=room.role==='watcher',side=game.players.indexOf(me.id);
+ const hand=Array.isArray(game.hands[side])?game.hands[side]:[],legal=new Set(game.legalCardIds||[]),pullEligible=new Set(game.pullEligibleCardIds||[]);
+ const seats=game.players.map((id,index)=>`${playerName(id)}: target ${game.targets[index]??'?'}, tricks ${Number(game.tricks[index])}${game.scores?`, ${signedPoints(game.scores[index])}`:''}`).join(' · ');
+ const phaseName={cut:'Cut cards to assign 8, 5 and 3',declareTrump:'The 8-player announces trump before hands are opened',pull:'Private pulling',kitty:'Public talon — discard four privately',play:'Play',finished:'Deal complete'}[game.phase]||game.phase;
+ const kittyCards=Array.isArray(game.kitty)?game.kitty:[],pullStep=game.exchangeQueue[0],maxPull=Number(pullStep?.maxCount||0);
+ const cutLine=game.phase==='cut'?`<section class="cut-cards"><h3>Opening cut</h3><div class="card-row">${game.players.map((id,index)=>game.cutCards[index]?`<div><span>${playerName(id)}</span>${trickCard(game.cutCards[index],{disabled:true})}</div>`:`<div><span>${playerName(id)}</span><p>Waiting…</p></div>`).join('')}</div>${game.canCut?'<button id="cutBlato">Cut a card</button>':''}</section>`:'';
  $("#game").innerHTML=`<section class="trick-game"><p class="bg-progress">Blato · Deal ${Number(game.gameNumber)} of 9${room.match?.rated?' · Rated':''}</p>
-  <div class="trick-status"><h3>${game.finished?`${game.winners.map(playerName).join(', ')} ${game.winners.length>1?'win':'wins'} the deal`:phaseName}</h3><p>${seats}</p><p>Contract: <strong>${game.contract==='NT'?'No trump':game.contract||'Not chosen'}</strong></p></div>
-  ${game.phase==='bid'&&mine?`<div class="actions contract-buttons">${['♠','♥','♦','♣'].map(suit=>`<button data-contract="${suit}">${suit}</button>`).join('')}<button data-contract="NT">No trump</button><button data-contract="PASS" ${game.passesUsed[side]?'disabled':''}>Pass</button></div>`:''}
-  ${game.phase==='exchange'?`<p class="notice">${playerName(game.exchangeQueue[0]?.giver)} gives a card to ${playerName(game.exchangeQueue[0]?.receiver)}. ${game.exchangeQueue.length} exchange(s) remain.</p>`:''}
-  ${game.phase==='kitty'?`<section><h3>Public talon</h3><div class="card-row">${kittyCards.map(card=>trickCard(card,{selectedCard:selected.has(card.id),disabled:!game.canDiscardKitty})).join('')}</div></section>`:''}
+  <div class="trick-status"><h3>${game.finished?`${game.winners.map(playerName).join(', ')} ${game.winners.length>1?'win':'wins'} the deal`:phaseName}</h3><p>${seats}</p><p>Trump: <strong>${game.contract||'Not announced'}</strong></p></div>
+  ${cutLine}
+  ${game.phase==='declareTrump'&&game.canDeclareTrump?`<div class="actions contract-buttons">${['♠','♥','♦','♣'].map(suit=>`<button data-trump="${suit}">${suit}</button>`).join('')}</div>`:''}
+  ${game.phase==='declareTrump'?'<p class="notice">All dealt hands remain closed until trump is announced.</p>':''}
+  ${game.phase==='pull'?`<p class="notice">${playerName(pullStep?.giver)} may privately pull up to ${maxPull} card(s) from ${playerName(pullStep?.receiver)}. Trump cards cannot be used. ${game.exchangeQueue.length} pull(s) remain.</p>`:''}
+  ${kittyCards.length?`<section><h3>Public talon</h3><div class="card-row">${kittyCards.map(card=>trickCard(card,{disabled:true})).join('')}</div></section>`:''}
   ${game.phase==='play'?`<section class="trick-table"><div><h4>Current trick</h4><div class="card-row">${game.trick.map(item=>trickCard(item.card,{disabled:true})).join('')||'<span>Waiting for lead…</span>'}</div></div></section>`:''}
   ${game.lastTrick?`<details><summary>Last trick</summary><div class="card-row">${game.lastTrick.cards.map(card=>trickCard(card,{disabled:true})).join('')}</div></details>`:''}
-  ${!watching&&!game.finished?`<section><h3>Your hand</h3><div class="card-row blato-hand">${hand.map(card=>trickCard(card,{disabled:game.phase==='play'?!legal.has(card.id):game.phase==='exchange'?!game.canExchange:game.phase==='kitty'?!game.canDiscardKitty:true,selectedCard:selected.has(card.id)})).join('')}</div>
-   ${game.phase==='exchange'&&game.canExchange?`<button id="giveBlato" ${chosen?'':'disabled'}>Give selected card</button>`:''}
-   ${game.phase==='kitty'&&game.canDiscardKitty?`<button id="discardKitty" ${selected.size===4?'':'disabled'}>Return selected four cards</button>`:''}</section>`:''}
+  ${!watching&&!game.finished?`<section><h3>Your hand</h3><div class="card-row blato-hand">${hand.map(card=>trickCard(card,{disabled:game.phase==='play'?!legal.has(card.id):game.phase==='pull'?!pullEligible.has(card.id):game.phase==='kitty'?!game.canDiscardKitty:true,selectedCard:selected.has(card.id)})).join('')}</div>
+   ${game.phase==='pull'&&game.canPull?`<div class="actions"><button id="pullBlato">Pull selected (${selected.size}/${maxPull})</button><button id="forgivePull">Forgive this pull</button></div>`:''}
+   ${game.phase==='kitty'&&game.canDiscardKitty?`<button id="discardKitty" ${selected.size===4?'':'disabled'}>Discard selected four cards privately</button>`:''}</section>`:''}
+  ${game.exchangeLog?.length?`<details><summary>Completed pulls</summary>${game.exchangeLog.map(step=>`<p>${playerName(step.giver)} / ${playerName(step.receiver)}: ${Number(step.count)} card(s)${step.given?` — ${step.given.map(card=>`${card.rank}${card.suit}`).join(', ')} → ${step.returned.map(card=>`${card.rank}${card.suit}`).join(', ')}`:''}</p>`).join('')}</details>`:''}
   ${game.finished?`<section class="results"><h3>${game.forfeit?'Deal forfeited':'Deal result'}</h3></section>${standings()}`:''}
   ${watching&&!game.finished?'<p class="notice">Hands are hidden while you watch.</p>':''}</section>`;
- document.querySelectorAll('[data-contract]').forEach(button=>button.onclick=()=>act({type:'bid',contract:button.dataset.contract}));
+ $("#cutBlato")?.addEventListener('click',()=>act({type:'cut'}));
+ document.querySelectorAll('[data-trump]').forEach(button=>button.onclick=()=>act({type:'declareTrump',suit:button.dataset.trump}));
  document.querySelectorAll('[data-trick-card]:not([disabled])').forEach(button=>button.onclick=()=>{
-  const id=button.dataset.trickCard;
-  if(game.phase==='play'){act({type:'play',cardId:id});return}
-  if(game.phase==='exchange'){selected.clear();selected.add(id)}else if(game.phase==='kitty'){selected.has(id)?selected.delete(id):selected.add(id);if(selected.size>4)selected.delete(selected.values().next().value)}
+  const id=button.dataset.trickCard;if(game.phase==='play'){act({type:'play',cardId:id});return}
+  selected.has(id)?selected.delete(id):selected.add(id);const limit=game.phase==='pull'?maxPull:4;if(selected.size>limit)selected.delete(selected.values().next().value);
   renderBlato(game);localizeControls();
  });
- $("#giveBlato")?.addEventListener('click',()=>{if(chosen)act({type:'exchange',cardId:chosen.id})});
+ $("#pullBlato")?.addEventListener('click',()=>act({type:'pull',cardIds:[...selected]}));
+ $("#forgivePull")?.addEventListener('click',()=>act({type:'pull',cardIds:[]}));
  $("#discardKitty")?.addEventListener('click',()=>act({type:'discardKitty',cardIds:[...selected]}));
 }
 

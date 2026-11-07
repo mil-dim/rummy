@@ -17,6 +17,7 @@ try{
  assert.equal(await a.locator('html').getAttribute('lang'),'bg');
  assert.equal(await a.locator('#leaveGame').innerText(),'Напусни играта');
  assert.equal(await a.locator('#soundToggle').innerText(),'🔊 Звукът е включен');await a.locator('#soundToggle').click();assert.equal(await a.locator('#soundToggle').innerText(),'🔇 Без звук');assert.equal(await a.evaluate(()=>localStorage.tabletopMuted),'1');await a.locator('#soundToggle').click();
+ for(const path of ['/sounds/dice-hard-table.wav','/sounds/checker-stack-clack.wav','/sounds/checker-brutal-hit.wav'])assert.equal(await a.evaluate(async path=>(await fetch(path)).status,path),200);
  await a.locator('#uiLanguage').selectOption('en');assert.equal(await a.locator('#newRoom').innerText(),'New room');
  await a.locator('#uiLanguage').selectOption('bg');
  await a.locator('#newRoom').click();await a.locator('#createName').fill('Your hand');await a.locator('#gameType').selectOption('backgammon');await a.locator('#createGo').click();await b.locator('[data-join]').click();await a.locator('#start').click();assert.equal(await a.locator('#bgVariantMode').inputValue(),'normal');assert.equal(await a.locator('#bgCountLabel').innerText(),'Брой партии');await a.locator('#bgVariantMode').selectOption('rotate');assert.equal(await a.locator('#bgCountLabel').innerText(),'Брой кръгове');await a.locator('#bgMatchGo').click();

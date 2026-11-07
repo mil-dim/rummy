@@ -1,12 +1,19 @@
 import {suggestName} from "./room-names.js";
-import { boardView, moveDestination, variantName } from "./backgammon-view.js";
+import { backgammonSound, boardView, moveDestination, variantName } from "./backgammon-view.js";
 import { translateInterface, translateText } from "./i18n.js";
 
 const socket=io(), $=selector=>document.querySelector(selector);
 let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
 function localizeControls(root=document){translateInterface(root,uiLanguage)}
 let soundMuted=localStorage.tabletopMuted==='1',audioContext=null,lastSoundAt={};
-function audio(){
+const sampleSoundFiles=Object.freeze({dice:'/sounds/dice-hard-table.wav',checker:'/sounds/checker-stack-clack.wav',hit:'/sounds/checker-brutal-hit.wav'});
+const sampleSoundVolumes=Object.freeze({dice:.72,checker:.58,hit:.82}),samplePlayers=new Map();
+function samplePlayer(kind){
+ if(!sampleSoundFiles[kind])return null;
+ if(!samplePlayers.has(kind)){const player=new Audio(sampleSoundFiles[kind]);player.preload='auto';player.volume=sampleSoundVolumes[kind];samplePlayers.set(kind,player)}
+ return samplePlayers.get(kind);
+}
+function cardAudio(){
  if(soundMuted)return null;
  const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return null;
  audioContext||=new Audio();if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});return audioContext;
@@ -16,18 +23,13 @@ function soundTone(ctx,frequency,start,duration,{type='sine',gain=.08,endFrequen
  volume.gain.setValueAtTime(.0001,start);volume.gain.exponentialRampToValueAtTime(gain,start+.008);volume.gain.exponentialRampToValueAtTime(.0001,start+duration);oscillator.connect(volume).connect(ctx.destination);oscillator.start(start);oscillator.stop(start+duration+.01);
 }
 function playSound(kind){
- const now=performance.now();if(soundMuted||now-(lastSoundAt[kind]||0)<45)return;lastSoundAt[kind]=now;const ctx=audio();if(!ctx)return;const at=ctx.currentTime+.01;
- if(kind==='dice'){
-  for(let i=0;i<9;i++)soundTone(ctx,170+i%3*55,at+i*.055,.045,{type:'square',gain:.035,endFrequency:95+i*8});
-  soundTone(ctx,95,at+.48,.12,{type:'triangle',gain:.09,endFrequency:55});soundTone(ctx,145,at+.51,.1,{type:'triangle',gain:.07,endFrequency:75});
- }else if(kind==='checker'){
-  soundTone(ctx,190,at,.055,{type:'triangle',gain:.11,endFrequency:85});soundTone(ctx,120,at+.035,.06,{type:'square',gain:.04,endFrequency:65});
- }else{
-  soundTone(ctx,520,at,.075,{type:'triangle',gain:.045,endFrequency:210});soundTone(ctx,760,at+.035,.09,{type:'sine',gain:.035,endFrequency:330});
- }
+ const now=performance.now();if(soundMuted||now-(lastSoundAt[kind]||0)<45)return;lastSoundAt[kind]=now;
+ const sample=samplePlayer(kind);if(sample){sample.currentTime=0;sample.play().catch(()=>{});return}
+ const ctx=cardAudio();if(!ctx)return;const at=ctx.currentTime+.01;
+ soundTone(ctx,520,at,.075,{type:'triangle',gain:.045,endFrequency:210});soundTone(ctx,760,at+.035,.09,{type:'sine',gain:.035,endFrequency:330});
 }
 function updateSoundToggle(){const button=$("#soundToggle"),english=soundMuted?'🔇 Muted':'🔊 Sound on';button.textContent=translateText(english,uiLanguage);button.setAttribute('aria-pressed',String(soundMuted));button.lang=uiLanguage}
-document.addEventListener('pointerdown',()=>audio(),{capture:true});
+document.addEventListener('pointerdown',()=>{for(const kind of Object.keys(sampleSoundFiles))samplePlayer(kind)?.load();cardAudio()},{capture:true,once:true});
 $("#soundToggle").onclick=()=>{soundMuted=!soundMuted;localStorage.tabletopMuted=soundMuted?'1':'0';updateSoundToggle();if(!soundMuted)playSound('checker')};
 updateSoundToggle();
 let maintenance=null,invitation=null,lobbyPeople=[];
@@ -217,8 +219,7 @@ function announceGameSound(previous,next){
  const before=previous?.game,after=next?.game;
  if(!before||!after||previous.id!==next.id||before.kind!==after.kind||before.gameNumber!==after.gameNumber)return;
  if(after.kind==='backgammon'){
-  if(Number(after.rollNumber||0)!==Number(before.rollNumber||0))playSound('dice');
-  else if(Number(after.moveNumber||0)!==Number(before.moveNumber||0))playSound('checker');
+  const kind=backgammonSound(before,after);if(kind)playSound(kind);
  }else if(cardStateSignature(before)!==cardStateSignature(after))playSound('card');
 }
 

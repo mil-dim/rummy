@@ -18,9 +18,14 @@ import {startSantaseMatch,recordSantaseResult,startBlatoMatch,recordBlatoResult}
 import { startBackgammonMatch, recordBackgammonResult, backgammonVariant } from "./lib/backgammon-match.js";
 
 const sourceRoot = new URL("./", import.meta.url);
+function sourceFiles(dir) {
+  return readdirSync(new URL(dir + "/", sourceRoot), { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap(entry => entry.isDirectory() ? sourceFiles(dir + "/" + entry.name) : [dir + "/" + entry.name]);
+}
 const buildHash = createHash("sha256");
 for (const path of ["server.js", "package.json", "package-lock.json",
-  ...["lib", "public"].flatMap(dir => readdirSync(new URL(dir + "/", sourceRoot)).sort().map(name => dir + "/" + name))]) {
+  ...["lib", "public"].flatMap(sourceFiles)]) {
   buildHash.update(path).update(readFileSync(new URL(path, sourceRoot)));
 }
 const buildInfo = {

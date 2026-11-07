@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newBackgammon,backgammonAction,legalBackgammonMoves,publicBackgammon,pointRank,physicalPoint} from '../lib/backgammon.js';
 import {backgammonVariant,startBackgammonMatch,recordBackgammonResult} from '../lib/backgammon-match.js';
-import {boardView,moveDestination} from '../public/backgammon-view.js';
+import {backgammonSound,boardView,moveDestination} from '../public/backgammon-view.js';
 import {diceRandom} from '../lib/dice.js';
 const players=[{id:'w'},{id:'r'}];
 const action=(g,type,extra={},side=g.turn)=>backgammonAction(g,g.players[side],{type,...extra});
@@ -59,6 +59,14 @@ test('variant setups and perspective coordinates retain authoritative point IDs'
  const normal=newBackgammon(players,{variant:'normal',starter:'w'});normal.dice=[6];
  assert.equal(moveDestination(normal,{from:23,dieIndex:0},0),17);assert.equal(moveDestination(normal,{from:0,dieIndex:0},1),6);
  normal.dice=[1];assert.equal(moveDestination(normal,{from:0,dieIndex:0},0),'off');
+});
+
+test('sound events distinguish rolls, ordinary moves and hits even during bar entry',()=>{
+ assert.equal(backgammonSound({rollNumber:2,moveNumber:4},{rollNumber:3,moveNumber:4}),'dice');
+ assert.equal(backgammonSound({rollNumber:2,moveNumber:4,turn:0,bar:[0,0]},{rollNumber:2,moveNumber:5,turn:0,bar:[0,0]}),'checker');
+ // Re-entering one checker while hitting another leaves the total bar count unchanged.
+ assert.equal(backgammonSound({rollNumber:2,moveNumber:4,turn:0,bar:[1,0]},{rollNumber:2,moveNumber:5,turn:0,bar:[0,1]}),'hit');
+ assert.equal(backgammonSound({rollNumber:2,moveNumber:4},{rollNumber:2,moveNumber:4}),null);
 });
 
 test('Tapa pins, cannot move a pinned checker, releases it and restores pins on undo',()=>{

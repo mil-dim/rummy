@@ -15,3 +15,11 @@ export function moveDestination(game,move,side){
  if(destinationRank<0)return 'off';
  return side===0?destinationRank:game.variant==='gulbara'?(destinationRank+12)%24:23-destinationRank;
 }
+
+export function backgammonSound(before,after){
+ if(Number(after?.rollNumber||0)!==Number(before?.rollNumber||0))return 'dice';
+ if(Number(after?.moveNumber||0)===Number(before?.moveNumber||0))return null;
+ const mover=Number(before?.turn);
+ if((mover===0||mover===1)&&Number(after?.bar?.[1-mover]||0)>Number(before?.bar?.[1-mover]||0))return 'hit';
+ return 'checker';
+}

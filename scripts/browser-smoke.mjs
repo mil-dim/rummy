@@ -31,7 +31,8 @@ try{
  await a.locator('#roll').click();await b.locator('#roll').click();await a.waitForFunction(()=>document.querySelectorAll('.roll-history li').length===2);
  const lines=await a.locator('.roll-history li').allTextContents();assert.equal(lines.length,2);assert.match(lines[0],/#2/);assert.match(lines[1],/#1/);
  let mover=null;for(let attempt=0;attempt<8&&!mover;attempt++){
-  for(const page of [a,b])if(await page.locator('#roll:enabled').isVisible().catch(()=>false))await page.locator('#roll:enabled').click();
+  for(const page of [a,b])await page.evaluate(()=>{const button=document.querySelector('#roll:enabled');if(button)button.click()});
+  await a.waitForTimeout(150);
   for(const page of [a,b])if(await page.locator('.checker-drag-source').first().isVisible().catch(()=>false)){mover=page;break}
  }
  assert.ok(mover,'a player should have draggable legal checkers');const source=mover.locator('.checker-drag-source .checker').first(),sourceBox=await source.boundingBox();assert.ok(sourceBox);const sourceInfo=await source.evaluate(element=>{const button=element.closest('button');return {point:button.dataset.point??null,bar:button.dataset.bar??null,label:button.getAttribute('aria-label')}});

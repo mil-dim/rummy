@@ -3,7 +3,9 @@ import {createDiceAudit} from "./lib/dice-audit.js";
 import {startAdmin} from "./lib/admin.js";
 import {createScoreStore} from "./lib/score-store.js";
 import {installGoogleAuth} from "./lib/google-auth.js";
+import {createFeedbackService} from "./lib/feedback.js";
 import express from "express";
+import nodemailer from "nodemailer";
 import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import http from "node:http";
@@ -66,6 +68,22 @@ const connectionAttempts = new Map();
 let maintenance=null;
 const audit=createDiceAudit(process.env.DICE_AUDIT_DIR,buildInfo.environment);
 const scoreStore=createScoreStore(process.env.SCORE_DB_PATH||':memory:');
+const smtpConfigured=Boolean(process.env.FEEDBACK_TO&&process.env.SMTP_HOST&&process.env.SMTP_USER&&process.env.SMTP_PASS);
+const mailTransport=smtpConfigured?nodemailer.createTransport({
+ host:process.env.SMTP_HOST,
+ port:Number(process.env.SMTP_PORT)||465,
+ secure:process.env.SMTP_SECURE!=='0',
+ auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS},
+ connectionTimeout:10_000,
+ greetingTimeout:10_000,
+ socketTimeout:15_000
+}):null;
+const feedback=createFeedbackService({
+ recipient:process.env.FEEDBACK_TO,
+ environment:buildInfo.environment,
+ version:buildInfo.version,
+ sendMail:mailTransport?message=>mailTransport.sendMail({...message,from:process.env.SMTP_USER}):null
+});
 const app = express();
 const server = http.createServer(app);
 
@@ -432,7 +450,7 @@ io.on("connection", socket => {
        displayName:player.name,country,locale,timeZone})}catch(error){console.error('Usage visit failed:',error.message)}
 
       emitPeople();
-      reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findMembership(player.id)) });
+      reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findMembership(player.id)), feedbackConfigured:feedback.configured });
       emitInvitation(player);
       for (const room of rooms.values()) {
         if (room.players.some(candidate => candidate.id === player.id) || (room.watchers || []).some(candidate => candidate.id === player.id)) {
@@ -458,6 +476,22 @@ io.on("connection", socket => {
     for(const client of io.sockets.sockets.values())if(client.data.player===player)client.emit("identityChanged",playerView(player));
     const room=findMembership(player.id);if(room)emitRoom(room,false);else emitLobby();
     reply(ack,{ok:true});
+  });
+  socket.on("submitFeedback",async(payload,ack)=>{
+    try{
+      const player=socket.data.player,room=player&&findMembership(player.id);
+      const result=await feedback.submit({
+        playerId:player?.id,
+        ip:requestIp(socket.request),
+        name:player?.name,
+        account:player?.account,
+        room:room?{id:room.id,name:room.name,gameType:room.gameType,game:Boolean(room.game)}:null,
+        type:payload?.type,
+        message:payload?.message,
+        website:payload?.website
+      });
+      reply(ack,result);
+    }catch(error){reply(ack,{ok:false,error:error.message})}
   });
   socket.on("signOut",(_payload,ack)=>{
     const player=socket.data.player;

@@ -57,3 +57,11 @@ test('Santase and Blato controls and room labels translate',()=>{
  for(const [english,bg] of [['Santase (66)','Сантасе (66)'],['Blato (3-5-8)','Блато (3-5-8)'],['ROOM SIXTY66 · santase','СТАЯ SIXTY66 · сантасе'],['Deal 3 of 9','Раздаване 3 от 9']])assert.equal(translateText(english,'bg'),bg);
 });
 
+test('feedback form and delivery messages translate',()=>{
+ assert.equal(translateControl('Feedback','bg'),'Мнение');
+ assert.equal(translateControl('Send feedback','bg'),'Изпрати мнението');
+ assert.equal(translateText('Rules recommendation','bg'),'Препоръка за правилата');
+ assert.equal(translateText('Thank you. Your feedback was sent.','bg'),'Благодарим. Мнението ви беше изпратено.');
+ assert.equal(translateText('Daily feedback limit reached. Please try again tomorrow.','bg'),'Достигнахте дневния лимит. Опитайте отново утре.');
+});
+

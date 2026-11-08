@@ -119,6 +119,33 @@ docker compose exec -T tabletop node scripts/admin.mjs approve ACCOUNT_ID
 docker compose exec -T tabletop node scripts/admin.mjs unapprove ACCOUNT_ID
 ```
 
+## Private feedback delivery
+
+The in-game feedback form is available only when SMTP is configured. Its recipient
+and credentials stay in each deployment's uncommitted `.env`; they are never sent
+to the browser or included in the public build. For the operator Gmail account,
+enable two-step verification and create a Google **app password** for SMTP. Do not
+use or share the normal Google password.
+
+Add the same settings to both `~/rummy/qa/.env` and `~/rummy/prod/.env`:
+
+```sh
+FEEDBACK_TO=operator@example.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=1
+SMTP_USER=operator@example.com
+SMTP_PASS=the-16-character-google-app-password
+```
+
+Recreate each container after changing `.env`; a source rebuild is not required
+for environment-only changes. The form allows one attempt per player
+every 10 minutes, at most three attempts per player and ten per source network in
+24 hours, and contains a bot honeypot. Limits are held in memory and reset when the
+container restarts. The IP address is used only for this temporary limit; it is not
+emailed or stored. Feedback is sent as plain email and is not written to SQLite or
+application logs. Delivery errors log only the SMTP error, never the message body.
+
 ## Private usage reports
 
 Tabletop stores privacy-limited visit and game analytics in the existing SQLite

@@ -33,7 +33,7 @@ document.addEventListener('pointerdown',()=>{for(const kind of Object.keys(sampl
 $("#soundToggle").onclick=()=>{soundMuted=!soundMuted;localStorage.tabletopMuted=soundMuted?'1':'0';updateSoundToggle();if(!soundMuted)playSound('checker')};
 updateSoundToggle();
 let maintenance=null,invitation=null,lobbyPeople=[];
-let signedAccount=null,authConfigured=false;
+let signedAccount=null,authConfigured=false,feedbackConfigured=false;
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
@@ -77,6 +77,7 @@ function identified(response){
  if(!response?.ok){toast(response?.error);return}
  const hadRoom=Boolean(room||pendingRoom);
  localStorage.token=response.token;localStorage.name=response.player.name;me=response.player;
+ feedbackConfigured=Boolean(response.feedbackConfigured);$("#feedbackOpen").hidden=!feedbackConfigured;
  $("#welcome").hidden=true;$("#profileActions").hidden=false;$("#currentName").textContent=me.name;
  if(!response.resumed){
    clearRoomState();setLobbyView(true);
@@ -94,7 +95,7 @@ $("#renameOpen").onclick=()=>{$("#renameInput").value=me.name;$("#renameDialog")
 $("#renameSave").onclick=event=>{event.preventDefault();if(!$("#renameInput").reportValidity())return;socket.emit("rename",{name:$("#renameInput").value},response=>{if(response.ok)$("#renameDialog").close();else toast(response.error)})};
 socket.on("signedOut",()=>{
  localStorage.removeItem("token");localStorage.removeItem("name");sessionStorage.removeItem("tabletopView");
- me=null;invitation=null;renderInvitation();clearRoomState();$("#welcome").hidden=false;$("#lobby").hidden=true;$("#room").hidden=true;$("#profileActions").hidden=true;$("#name").value="";
+ me=null;invitation=null;renderInvitation();clearRoomState();$("#welcome").hidden=false;$("#lobby").hidden=true;$("#room").hidden=true;$("#profileActions").hidden=true;$("#feedbackOpen").hidden=true;$("#name").value="";
 });
 $("#signOut").onclick=()=>{
  const logout=()=>socket.emit("signOut",{},response=>{if(!response.ok)toast(response.error)});
@@ -588,6 +589,17 @@ loadAccount();loadScoreboard();
 document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 
 $("#rulesOpen").onclick=()=>$("#rules").showModal();
+$("#feedbackOpen").onclick=()=>$("#feedbackDialog").showModal();
+$("#feedbackForm").onsubmit=event=>{
+ event.preventDefault();
+ if(!$("#feedbackForm").reportValidity())return;
+ const button=$("#feedbackSend");button.disabled=true;
+ socket.emit("submitFeedback",{type:$("#feedbackType").value,message:$("#feedbackMessage").value,website:$("#feedbackWebsite").value},response=>{
+  button.disabled=false;
+  if(!response?.ok){toast(response?.error);return}
+  $("#feedbackDialog").close();$("#feedbackForm").reset();toast("Thank you. Your feedback was sent.");
+ });
+};
 document.querySelectorAll("[data-rules-lang]").forEach(button=>button.onclick=()=>{
  const language=button.dataset.rulesLang;
  document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==language);

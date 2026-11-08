@@ -15,6 +15,12 @@ services:
       PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-}"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      FEEDBACK_TO: "${FEEDBACK_TO:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_SECURE: "${SMTP_SECURE:-1}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
       TRUST_PROXY: "${TRUST_PROXY:-0}"
     volumes:
       - runtime-data:/data

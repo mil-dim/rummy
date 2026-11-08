@@ -1,6 +1,7 @@
 // Keep button translation separate from game state and from user-entered names.
 const bg = {
   'Rules / Правила': 'Правила',
+  'Feedback':'Мнение', 'Send feedback':'Изпрати мнението',
   'Enter the lobby': 'Вход в лобито',
   'New room': 'Нова стая',
   'Join table': 'Присъедини се',
@@ -73,6 +74,21 @@ export function translateButtons(root, language) {
 const labels = {
  'Leave this table and sign out?':'Да напуснете ли тази маса и да излезете?',
  'Maintenance in progress. Try again after the update.':'Извършва се поддръжка. Опитайте след обновяването.',
+ 'Rules and feedback':'Правила и мнения',
+ 'Send a rules recommendation, feature idea, or opinion to the operator.':'Изпратете препоръка за правилата, идея за функция или мнение до оператора.',
+ 'Type':'Вид', 'Rules recommendation':'Препоръка за правилата', 'Feature recommendation':'Препоръка за функция', 'General opinion':'Общо мнение',
+ 'Your message':'Вашето съобщение', 'Please describe your suggestion…':'Опишете предложението си…',
+ 'At most one message every 10 minutes and three per day. Do not include passwords or private information.':'Най-много едно съобщение на 10 минути и три на ден. Не включвайте пароли или лична информация.',
+ 'Thank you. Your feedback was sent.':'Благодарим. Мнението ви беше изпратено.',
+ 'Feedback is temporarily unavailable.':'Формата за мнения временно не е достъпна.',
+ 'Enter the lobby before sending feedback.':'Влезте в лобито, преди да изпратите мнение.',
+ 'Choose a feedback type.':'Изберете вид на мнението.',
+ 'Please write at least 20 characters.':'Напишете поне 20 знака.',
+ 'Feedback is limited to 2000 characters.':'Мнението е ограничено до 2000 знака.',
+ 'Please wait before sending more feedback.':'Изчакайте, преди да изпратите ново мнение.',
+ 'Daily feedback limit reached. Please try again tomorrow.':'Достигнахте дневния лимит. Опитайте отново утре.',
+ 'Too many submissions from this network. Please try again tomorrow.':'Твърде много съобщения от тази мрежа. Опитайте отново утре.',
+ 'Feedback could not be delivered. Please try again later.':'Мнението не беше доставено. Опитайте отново по-късно.',
 
  'People':'Хора', 'No one here yet.':'Все още няма никого.', 'In lobby':'В лобито', 'Playing':'Играе', 'Watching':'Наблюдава', 'Disconnected':'Временно изключен', 'At table':'На маса',
  'Ratings':'Рейтинг', 'Rating':'Рейтинг', 'Games':'Партии', 'Sign in with Google':'Вход с Google', 'Rated':'С рейтинг', 'Approval pending':'Изчаква одобрение',

@@ -119,6 +119,32 @@ docker compose exec -T tabletop node scripts/admin.mjs approve ACCOUNT_ID
 docker compose exec -T tabletop node scripts/admin.mjs unapprove ACCOUNT_ID
 ```
 
+## Private usage reports
+
+Tabletop stores privacy-limited visit and game analytics in the existing SQLite
+database. The report includes display names, browser-reported country/locale and
+time zone, visit duration, rooms created/joined, watching, games and variants
+played, completion and winners. It does not include IP addresses, cards, private
+hands, messages, Google identifiers, email addresses or authentication tokens.
+Country is an approximation from the browser locale and may be missing or wrong.
+
+```sh
+# Last 30 days (default):
+docker compose exec -T tabletop node scripts/admin.mjs report
+
+# Last 7 days:
+docker compose exec -T tabletop node scripts/admin.mjs report 7
+
+# Save a report on the host:
+docker compose exec -T tabletop node scripts/admin.mjs report 30 > tabletop-report-30d.json
+```
+
+The command uses the loopback-only operator API and its per-boot token. Reports
+are never exposed through Caddy or the public application. Usage rows live in
+`/data/tabletop.sqlite`, survive normal container recreation, and follow the
+same backup precautions as ratings. Usage visits and games older than 24 months
+are deleted automatically when the application starts.
+
 Approval is not exposed through Caddy or the public web application. Rated matches
 require distinct approved accounts for all seated players and lock the roster at
 match start. Results are written once after the full match finishes; unfinished

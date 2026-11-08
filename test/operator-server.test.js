@@ -7,7 +7,7 @@ test('private operations API, draining, audit, rename and signout authorization'
  const child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'18094',ADMIN_PORT:'18095',ADMIN_TOKEN_FILE:tokenPath,DICE_AUDIT_DIR:auditDir},stdio:['ignore','pipe','pipe']});
  t.after(()=>{child.kill();rmSync(dir,{recursive:true,force:true})});await once(child.stdout,'data');
  const clients=[];t.after(()=>clients.forEach(s=>s.disconnect()));
- async function connect(name,token){const s=io('http://127.0.0.1:18094',{transports:['websocket'],forceNew:true,reconnection:false});clients.push(s);await once(s,'connect');s.on('room',r=>s.room=r);s.on('people',p=>s.people=p);s.on('identityChanged',p=>s.changed=p);s.on('signedOut',()=>s.loggedOut=true);s.identity=await send(s,'identify',{name,token});assert.equal(s.identity.ok,true);return s}
+ async function connect(name,token){const s=io('http://127.0.0.1:18094',{transports:['websocket'],forceNew:true,reconnection:false});clients.push(s);await once(s,'connect');s.on('room',r=>s.room=r);s.on('people',p=>s.people=p);s.on('identityChanged',p=>s.changed=p);s.on('signedOut',()=>s.loggedOut=true);s.identity=await send(s,'identify',{name,token,country:'US',locale:'en-US',timeZone:'America/New_York'});assert.equal(s.identity.ok,true);return s}
  const admin=(method,path,body)=>new Promise((resolve,reject)=>{const req=http.request({hostname:'127.0.0.1',port:18095,method,path,headers:{Authorization:'Bearer '+readFileSync(tokenPath,'utf8')}},res=>{let data='';res.on('data',b=>data+=b);res.on('end',()=>resolve({code:res.statusCode,...JSON.parse(data)}))});req.on('error',reject);req.end(body?JSON.stringify(body):null)});
  assert.equal((await fetch('http://127.0.0.1:18094/status')).status,404);assert.equal((await fetch('http://127.0.0.1:18094/maintenance',{method:'POST'})).status,404);
  const unauthorized=await fetch('http://127.0.0.1:18095/status');assert.equal(unauthorized.status,401);
@@ -29,6 +29,8 @@ test('private operations API, draining, audit, rename and signout authorization'
  const status=await admin('GET','/status');assert.equal(status.audit.writtenThisBoot,2);assert.equal(status.unfinishedGames.length,1);assert.ok(status.memory.rss>0);
  await admin('POST','/maintenance',{minutes:0});assert.equal((await admin('GET','/status')).safeToDeploy,false);
  await send(a,'leaveRoom');await send(b,'leaveRoom');const tab=await connect('New Milen',a.identity.token); // same identity, no room
+ const report=await admin('GET','/reports/usage?days=7');assert.equal(report.code,200);assert.ok(report.totals.visitors>=3);assert.equal(report.totals.gamesStarted,1);assert.equal(report.totals.gamesFinished,1);assert.equal(report.countries[0].country,'US');assert.equal(report.recentGames[0].gameType,'backgammon');
+ const reportCli=spawnSync(process.execPath,['scripts/admin.mjs','report','7'],{env:{...process.env,ADMIN_PORT:'18095',ADMIN_TOKEN_FILE:tokenPath}});assert.equal(reportCli.status,0,reportCli.stderr.toString());assert.equal(JSON.parse(reportCli.stdout).days,7);
  assert.equal((await send(a,'signOut')).ok,true);
  await new Promise(resolve=>setTimeout(resolve,25));assert.equal(tab.loggedOut,true);assert.equal((await send(tab,'rename',{name:'Cannot rename'})).ok,false);
  await send(b,'signOut');await send(c,'signOut');

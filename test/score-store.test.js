@@ -37,3 +37,21 @@ test('Santase and Blato have independent rating categories',()=>{
  store.recordMatch({roomId:'B',category:'blato',participants:accounts.map((account,index)=>({accountId:account.id,score:1-index}))});
  assert.deepEqual(new Set(store.scoreboard().map(row=>row.category)),new Set(['santase','blato']));store.close();
 });
+
+test('private usage reports aggregate visits, countries, activity and completed games',()=>{
+ const store=createScoreStore(':memory:'),now=2_000_000_000_000,start=now-120_000;
+ const alice=store.startUsageVisit({playerId:'alice-player',displayName:'Alice',country:'US',locale:'en-US',timeZone:'America/New_York',startedAt:start});
+ store.recordUsageEvent(alice,'room-created',{roomId:'ROOM',gameType:'backgammon',createdAt:start+1000});
+ store.recordUsageEvent(alice,'watch-started',{roomId:'OTHER',gameType:'rummy',createdAt:start+2000});
+ store.endUsageVisit(alice,start+90_000);
+ const bob=store.startUsageVisit({playerId:'bob-player',displayName:'Bob',country:'BG',locale:'bg-BG',timeZone:'Europe/Sofia',startedAt:start+10_000});
+ store.recordUsageEvent(bob,'room-joined',{roomId:'ROOM',gameType:'backgammon',createdAt:start+11_000});store.endUsageVisit(bob,start+70_000);
+ const game=store.startUsageGame({roomId:'ROOM',roomName:'Morning table',gameType:'backgammon',variant:'normal',gameNumber:1,startedAt:start+20_000,
+  players:[{playerId:'alice-player',displayName:'Alice'},{playerId:'bob-player',displayName:'Bob'}]});
+ assert.equal(store.finishUsageGame(game,{winnerPlayerId:'alice-player',result:{scores:{awarded:1}},finishedAt:start+60_000}),true);
+ assert.equal(store.finishUsageGame(game,{winnerPlayerId:'bob-player',finishedAt:start+61_000}),false,'finish is idempotent');
+ const report=store.usageReport(30,now);assert.deepEqual(report.totals,{visitors:2,visits:2,activeSeconds:150,gamesStarted:1,gamesFinished:1,completionRate:1});
+ assert.deepEqual(report.countries.map(row=>row.country),['BG','US']);assert.equal(report.games[0].variant,'normal');
+ assert.equal(report.people.find(row=>row.name==='Alice').wins,1);assert.equal(report.people.find(row=>row.name==='Alice').roomsCreated,1);
+ assert.equal(report.people.find(row=>row.name==='Bob').roomsJoined,1);assert.equal(report.recentGames[0].winner,'Alice');store.close();
+});

@@ -53,13 +53,20 @@ async function loadScoreboard(){
   $("#scoreboards").innerHTML=Object.keys(groups).length?`<div class="scoreboard-grid">${Object.entries(groups).map(([category,rows])=>`<div><h4>${esc(ratingName(category))}</h4><table><thead><tr><th>Player</th><th>Rating</th><th>Games</th></tr></thead><tbody>${rows.map(row=>`<tr><td data-no-translate>${esc(row.display_name)}</td><td>${Number(row.rating)}</td><td>${Number(row.games)}</td></tr>`).join("")}</tbody></table></div>`).join("")}</div>`:'<p>No rated matches yet.</p>';localizeControls($("#scoreboards"));
  }catch{$("#scoreboards").innerHTML='<p>Ratings are temporarily unavailable.</p>'}
 }
+function browserProfile(){
+ const locale=navigator.language||"";let country="";
+ try{country=new Intl.Locale(locale).region||""}catch{const match=locale.match(/[-_]([A-Za-z]{2})$/);country=match?match[1].toUpperCase():""}
+ let timeZone="";try{timeZone=Intl.DateTimeFormat().resolvedOptions().timeZone||""}catch{}
+ return {locale,country,timeZone};
+}
+const identification=(token,name)=>({token,name,...browserProfile()});
 
 socket.on("connect",()=>{
  $("#status").textContent="Connected";localizeControls();
  pendingRoom=null;
  checkServerVersion();
  const token=localStorage.token;
- if(token)socket.emit("identify",{token,name:localStorage.name},identified);
+ if(token)socket.emit("identify",identification(token,localStorage.name),identified);
 });
 socket.on("disconnect",()=>{$("#status").textContent="Reconnecting…";localizeControls()});
 function clearRoomState(){
@@ -80,7 +87,7 @@ function identified(response){
  }
  socket.emit("setView",{view:browsingLobby?"lobby":"room"});
 }
-$("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",{token:localStorage.token,name:$("#name").value},identified)};
+$("#identity").onsubmit=event=>{event.preventDefault();socket.emit("identify",identification(localStorage.token,$("#name").value),identified)};
 
 socket.on("identityChanged",player=>{me=player;localStorage.name=player.name;$("#currentName").textContent=player.name});
 $("#renameOpen").onclick=()=>{$("#renameInput").value=me.name;$("#renameDialog").showModal()};

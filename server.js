@@ -228,6 +228,7 @@ const admin=startAdmin({port:process.env.ADMIN_PORT,tokenPath:process.env.ADMIN_
  lock:()=>{maintenance.locked=true;io.emit("maintenance",maintenance)},
  cancel:()=>{maintenance=null;io.emit("maintenance",null)},
  listAccounts:()=>scoreStore.listAccounts(),
+ usageReport:days=>scoreStore.usageReport(days),
  approveAccount:(id,approved)=>{const account=scoreStore.setApproved(id,approved);for(const player of sessions.values())if(player.account?.id===id)player.account=account;for(const room of rooms.values())if([...room.players,...(room.watchers||[])].some(player=>player.account?.id===id))emitRoom(room,false);emitPeople();return account}});
 
 function playerView(player) {
@@ -249,6 +250,10 @@ function notifyRoomLeft(playerId, roomId) {
       client.leave(roomId); client.emit("roomLeft", { id: roomId });
     }
   }
+}
+function usageEvent(socket,eventType,room=null){
+ try{scoreStore.recordUsageEvent(socket.data.visitId,eventType,{roomId:room?.id||null,gameType:room?.gameType||null,
+  gameNumber:room?.game?.gameNumber||null,variant:room?.game?.variant||null})}catch(error){console.error('Usage event failed:',error.message)}
 }
 function deleteRoom(room) {
   clearRoomInvitations(room.id);
@@ -324,6 +329,12 @@ function recordResult(room) {
     room.ratingContext.recorded=true;
     room.match.ratingChanges=result.changes.map(change=>{const item=room.ratingContext.players.find(player=>player.accountId===change.accountId);return {...change,playerId:item.playerId}});
    }catch(error){room.match.ratingError='The match finished, but its rating could not be recorded.';console.error('Rating record failed:',error.message)}
+  }
+  if(gameFinished(room.game)&&room.reportGameId){
+   const game=room.game,result=game.kind==='rummy'?{scores:game.scores}:game.kind==='backgammon'?{scores:game.scores}:
+    game.kind==='santase'?{awarded:game.awarded,draw:Boolean(game.draw),reason:game.reason}:game.kind==='blato'?{scores:game.scores,winners:game.winners,forfeit:game.forfeit||null}:{};
+   try{scoreStore.finishUsageGame(room.reportGameId,{winnerPlayerId:game.winner||null,result})}catch(error){console.error('Usage game finish failed:',error.message)}
+   room.reportGameId=null;
   }
 }
 
@@ -415,6 +426,10 @@ io.on("connection", socket => {
       player.lastSeen = Date.now();
       socket.data.player = player;
       socket.data.token = token;
+      const locale=cleanText(payload.locale,"",20)||null,timeZone=cleanText(payload.timeZone,"",50)||null;
+      const country=/^[A-Za-z]{2}$/.test(payload.country||"")?String(payload.country).toUpperCase():null;
+      try{socket.data.visitId=scoreStore.startUsageVisit({playerId:player.id,accountId:player.account?.id||null,
+       displayName:player.name,country,locale,timeZone})}catch(error){console.error('Usage visit failed:',error.message)}
 
       emitPeople();
       reply(ack, { ok: true, token, player: playerView(player), sessionReplaced, resumed: Boolean(findMembership(player.id)) });
@@ -439,6 +454,7 @@ io.on("connection", socket => {
     const player=socket.data.player;
     if(!player||typeof payload?.name!=="string"||!payload.name.trim()){reply(ack,{ok:false,error:"Enter a name."});return}
     player.name=cleanText(payload.name,"Player",24);
+    try{scoreStore.touchUsageVisit(socket.data.visitId,{displayName:player.name,accountId:player.account?.id||null})}catch(error){console.error('Usage visit update failed:',error.message)}usageEvent(socket,'renamed');
     for(const client of io.sockets.sockets.values())if(client.data.player===player)client.emit("identityChanged",playerView(player));
     const room=findMembership(player.id);if(room)emitRoom(room,false);else emitLobby();
     reply(ack,{ok:true});
@@ -447,7 +463,10 @@ io.on("connection", socket => {
     const player=socket.data.player;
     if(player&&findMembership(player.id)){reply(ack,{ok:false,error:"Leave your table or stop watching before signing out."});return}
     const token=socket.data.token;if(token)sessions.delete(token);
-    for(const client of io.sockets.sockets.values())if(token&&client.data.token===token){client.data.player=null;client.data.token=null;client.emit("signedOut")}
+    for(const client of io.sockets.sockets.values())if(token&&client.data.token===token){
+     try{scoreStore.endUsageVisit(client.data.visitId)}catch(error){console.error('Usage visit end failed:',error.message)}
+     client.data.visitId=null;client.data.player=null;client.data.token=null;client.emit("signedOut");
+    }
     emitPeople();reply(ack,{ok:true});
   });
 
@@ -477,7 +496,7 @@ io.on("connection", socket => {
       if(!room||room.game||room.players.length>=room.maxPlayers)throw Error("This table is no longer available.");
       if(findMembership(player.id))throw Error("Leave your current table first.");
       checkMaintenance();
-      clearInvitation(player);room.players.push(player);clearRoomInvitations(room.id);player.browsingLobby=false;socket.join(room.id);emitRoom(room);reply(ack,{ok:true,joined:true});
+      clearInvitation(player);room.players.push(player);clearRoomInvitations(room.id);player.browsingLobby=false;socket.join(room.id);usageEvent(socket,'room-joined',room);emitRoom(room);reply(ack,{ok:true,joined:true});
     }catch(error){if(socket.data.player?.invitation)clearInvitation(socket.data.player);reply(ack,{ok:false,error:error.message})}
   });
 
@@ -513,6 +532,7 @@ io.on("connection", socket => {
       if(player.invitation)clearInvitation(player);
       player.browsingLobby=false;
       socket.join(id);
+      usageEvent(socket,'room-created',room);
       emitRoom(room);
       reply(ack, { ok: true, id });
     } catch (error) {
@@ -542,6 +562,7 @@ io.on("connection", socket => {
       if(player.invitation)clearInvitation(player);
       player.browsingLobby=false;
       socket.join(room.id);
+      usageEvent(socket,'room-joined',room);
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {
@@ -567,7 +588,7 @@ io.on("connection", socket => {
       }
       if(player.invitation)clearInvitation(player);
       player.browsingLobby=false;
-      socket.join(room.id); emitRoom(room, false); reply(ack,{ok:true});
+      socket.join(room.id);usageEvent(socket,'watch-started',room);emitRoom(room, false); reply(ack,{ok:true});
     } catch (error) { reply(ack,{ok:false,error:error.message}); }
   });
 
@@ -577,6 +598,7 @@ io.on("connection", socket => {
       if (!player) throw Error("Choose your name first.");
       const watched = findWatchedRoom(player.id);
       if (watched) {
+        usageEvent(socket,'watch-stopped',watched);
         watched.watchers = watched.watchers.filter(member => member.id !== player.id);
         notifyRoomLeft(player.id,watched.id); emitRoom(watched,false);
         emitInvitation(player);
@@ -584,6 +606,7 @@ io.on("connection", socket => {
       }
       const room = findPlayerRoom(player.id);
       if (!room) { reply(ack, { ok: true }); return; }
+      usageEvent(socket,'room-left',room);
       if (room.game && !gameFinished(room.game)) {
         if (room.game.kind === "rummy") forfeitRummy(room.game, player.id);
         else if(room.game.kind === "backgammon")forfeitBackgammon(room.game, player.id);
@@ -650,6 +673,10 @@ io.on("connection", socket => {
         : room.gameType === "santase" ? newSantase(room.players,{gameNumber:room.gameNumber,dealer:room.match.dealer})
         : newBlato(room.players,{gameNumber:room.gameNumber,targets:room.match.nextTargets,
           previousScores:room.match.previousScores});
+      try{room.reportGameId=scoreStore.startUsageGame({roomId:room.id,roomName:room.name,gameType:room.gameType,
+       variant:room.game.variant||null,gameNumber:room.game.gameNumber,players:room.players.map(member=>({playerId:member.id,
+        accountId:member.account?.id||null,displayName:member.name}))})}catch(error){console.error('Usage game start failed:',error.message)}
+      usageEvent(socket,'game-started',room);
       emitRoom(room);
       reply(ack, { ok: true });
     } catch (error) {
@@ -683,6 +710,7 @@ io.on("connection", socket => {
   socket.on("disconnect", () => {
     const player = socket.data.player;
     if (!player) return;
+    try{scoreStore.endUsageVisit(socket.data.visitId)}catch(error){console.error('Usage visit end failed:',error.message)}
     if (player.socketId === socket.id) player.socketId = null;
     player.lastSeen = Date.now();
     emitPeople();
@@ -696,6 +724,8 @@ io.on("connection", socket => {
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
   let lobbyChanged = false;
+  for(const client of io.sockets.sockets.values())try{scoreStore.touchUsageVisit(client.data.visitId,{lastSeenAt:now,
+   displayName:client.data.player?.name,accountId:client.data.player?.account?.id})}catch(error){console.error('Usage heartbeat failed:',error.message)}
 
   for (const [id, room] of rooms) {
     const kept = (room.watchers || []).filter(player => player.socketId || now - player.lastSeen <= WATCHER_IDLE_MS);

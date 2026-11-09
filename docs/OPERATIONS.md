@@ -121,21 +121,20 @@ docker compose exec -T tabletop node scripts/admin.mjs unapprove ACCOUNT_ID
 
 ## Private feedback delivery
 
-The in-game feedback form is available only when SMTP is configured. Its recipient
-and credentials stay in each deployment's uncommitted `.env`; they are never sent
-to the browser or included in the public build. For the operator Gmail account,
-enable two-step verification and create a Google **app password** for SMTP. Do not
-use or share the normal Google password.
+The in-game feedback form is available only when the Resend HTTPS API is
+configured. DigitalOcean blocks outbound SMTP ports 25, 465 and 587, so Gmail SMTP
+cannot be used from the Droplet. The recipient, sender and API key stay in each
+deployment's uncommitted `.env`; they are never sent to the browser or included in
+the public build.
 
-Add the same settings to both `~/rummy/qa/.env` and `~/rummy/prod/.env`:
+Create a Resend account, verify the sending domain, and create an API key restricted
+to sending email. Add the same settings to both `~/rummy/qa/.env` and
+`~/rummy/prod/.env`:
 
 ```sh
 FEEDBACK_TO=operator@example.com
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_SECURE=1
-SMTP_USER=operator@example.com
-SMTP_PASS=the-16-character-google-app-password
+FEEDBACK_FROM="Tabletop <feedback@example.com>"
+RESEND_API_KEY=re_replace_with_private_key
 ```
 
 Recreate each container after changing `.env`; a source rebuild is not required
@@ -144,7 +143,8 @@ every 10 minutes, at most three attempts per player and ten per source network i
 24 hours, and contains a bot honeypot. Limits are held in memory and reset when the
 container restarts. The IP address is used only for this temporary limit; it is not
 emailed or stored. Feedback is sent as plain email and is not written to SQLite or
-application logs. Delivery errors log only the SMTP error, never the message body.
+application logs. Delivery errors log only the Resend HTTP error, never the message
+body or API key. All delivery traffic uses HTTPS port 443.
 
 ## Private usage reports
 

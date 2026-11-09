@@ -590,6 +590,7 @@ document.querySelectorAll(".rules-language").forEach(section=>section.hidden=sec
 
 $("#rulesOpen").onclick=()=>$("#rules").showModal();
 $("#feedbackOpen").onclick=()=>$("#feedbackDialog").showModal();
+$("#feedbackCancel").onclick=()=>$("#feedbackDialog").close();
 $("#feedbackForm").onsubmit=event=>{
  event.preventDefault();
  if(!$("#feedbackForm").reportValidity())return;

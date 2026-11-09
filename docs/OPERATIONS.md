@@ -119,32 +119,38 @@ docker compose exec -T tabletop node scripts/admin.mjs approve ACCOUNT_ID
 docker compose exec -T tabletop node scripts/admin.mjs unapprove ACCOUNT_ID
 ```
 
-## Private feedback delivery
+## Private feedback files
 
-The in-game feedback form is available only when the Resend HTTPS API is
-configured. DigitalOcean blocks outbound SMTP ports 25, 465 and 587, so Gmail SMTP
-cannot be used from the Droplet. The recipient, sender and API key stay in each
-deployment's uncommitted `.env`; they are never sent to the browser or included in
-the public build.
+Feedback is appended to monthly JSON Lines files in `/data/feedback` inside the
+environment's existing persistent Docker volume. It survives normal container
+recreation and is separate for QA and production. Each record contains submission
+time, category, message, display name, signed-in status, current lobby/table
+context, environment and application version. It does not contain the visitor IP,
+cards, credentials, or authentication identifiers.
 
-Create a Resend account, verify the sending domain, and create an API key restricted
-to sending email. Add the same settings to both `~/rummy/qa/.env` and
-`~/rummy/prod/.env`:
+The form allows one attempt per player every 10 minutes, at most three attempts
+per player and ten per source network in 24 hours, and contains a bot honeypot.
+Limits are held in memory and reset when the container restarts. Feedback storage
+is capped at 10 MiB; export and clear it periodically.
 
 ```sh
-FEEDBACK_TO=operator@example.com
-FEEDBACK_FROM="Tabletop <feedback@example.com>"
-RESEND_API_KEY=re_replace_with_private_key
+# Human-readable review:
+docker compose exec -T tabletop node scripts/feedback.mjs list
+
+# File count, record count, and bytes:
+docker compose exec -T tabletop node scripts/feedback.mjs status
+
+# Save a JSON export on the host before cleaning:
+docker compose exec -T tabletop node scripts/feedback.mjs export \
+  > "feedback-$(date +%F).json"
+
+# Irreversibly delete only feedback-YYYY-MM.jsonl files:
+docker compose exec -T tabletop node scripts/feedback.mjs clear --confirm
 ```
 
-Recreate each container after changing `.env`; a source rebuild is not required
-for environment-only changes. The form allows one attempt per player
-every 10 minutes, at most three attempts per player and ten per source network in
-24 hours, and contains a bot honeypot. Limits are held in memory and reset when the
-container restarts. The IP address is used only for this temporary limit; it is not
-emailed or stored. Feedback is sent as plain email and is not written to SQLite or
-application logs. Delivery errors log only the Resend HTTP error, never the message
-body or API key. All delivery traffic uses HTTPS port 443.
+The clear command does not recursively delete a directory and cannot touch the
+ratings database or dice audit. Keep the exported host file only as long as it is
+useful, because it contains user-submitted text.
 
 ## Private usage reports
 

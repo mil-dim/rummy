@@ -4,7 +4,7 @@ import {startAdmin} from "./lib/admin.js";
 import {createScoreStore} from "./lib/score-store.js";
 import {installGoogleAuth} from "./lib/google-auth.js";
 import {createFeedbackService} from "./lib/feedback.js";
-import {createResendSender} from "./lib/resend.js";
+import {createFeedbackStore} from "./lib/feedback-store.js";
 import express from "express";
 import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -68,12 +68,11 @@ const connectionAttempts = new Map();
 let maintenance=null;
 const audit=createDiceAudit(process.env.DICE_AUDIT_DIR,buildInfo.environment);
 const scoreStore=createScoreStore(process.env.SCORE_DB_PATH||':memory:');
-const resendSender=createResendSender({apiKey:process.env.RESEND_API_KEY,from:process.env.FEEDBACK_FROM});
+const feedbackStore=createFeedbackStore({directory:process.env.FEEDBACK_DIR});
 const feedback=createFeedbackService({
- recipient:process.env.FEEDBACK_TO,
  environment:buildInfo.environment,
  version:buildInfo.version,
- sendMail:resendSender
+ deliver:feedbackStore
 });
 const app = express();
 const server = http.createServer(app);

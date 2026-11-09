@@ -79,7 +79,7 @@ const labels = {
  'Type':'Вид', 'Rules recommendation':'Препоръка за правилата', 'Feature recommendation':'Препоръка за функция', 'General opinion':'Общо мнение',
  'Your message':'Вашето съобщение', 'Please describe your suggestion…':'Опишете предложението си…',
  'At most one message every 10 minutes and three per day. Do not include passwords or private information.':'Най-много едно съобщение на 10 минути и три на ден. Не включвайте пароли или лична информация.',
- 'Thank you. Your feedback was sent.':'Благодарим. Мнението ви беше изпратено.',
+ 'Thank you. Your feedback was saved.':'Благодарим. Мнението ви беше запазено.',
  'Feedback is temporarily unavailable.':'Формата за мнения временно не е достъпна.',
  'Enter the lobby before sending feedback.':'Влезте в лобито, преди да изпратите мнение.',
  'Choose a feedback type.':'Изберете вид на мнението.',
@@ -88,7 +88,7 @@ const labels = {
  'Please wait before sending more feedback.':'Изчакайте, преди да изпратите ново мнение.',
  'Daily feedback limit reached. Please try again tomorrow.':'Достигнахте дневния лимит. Опитайте отново утре.',
  'Too many submissions from this network. Please try again tomorrow.':'Твърде много съобщения от тази мрежа. Опитайте отново утре.',
- 'Feedback could not be delivered. Please try again later.':'Мнението не беше доставено. Опитайте отново по-късно.',
+ 'Feedback could not be saved. Please try again later.':'Мнението не беше запазено. Опитайте отново по-късно.',
 
  'People':'Хора', 'No one here yet.':'Все още няма никого.', 'In lobby':'В лобито', 'Playing':'Играе', 'Watching':'Наблюдава', 'Disconnected':'Временно изключен', 'At table':'На маса',
  'Ratings':'Рейтинг', 'Rating':'Рейтинг', 'Games':'Партии', 'Sign in with Google':'Вход с Google', 'Rated':'С рейтинг', 'Approval pending':'Изчаква одобрение',

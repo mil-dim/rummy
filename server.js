@@ -4,8 +4,8 @@ import {startAdmin} from "./lib/admin.js";
 import {createScoreStore} from "./lib/score-store.js";
 import {installGoogleAuth} from "./lib/google-auth.js";
 import {createFeedbackService} from "./lib/feedback.js";
+import {createResendSender} from "./lib/resend.js";
 import express from "express";
-import nodemailer from "nodemailer";
 import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import http from "node:http";
@@ -68,21 +68,12 @@ const connectionAttempts = new Map();
 let maintenance=null;
 const audit=createDiceAudit(process.env.DICE_AUDIT_DIR,buildInfo.environment);
 const scoreStore=createScoreStore(process.env.SCORE_DB_PATH||':memory:');
-const smtpConfigured=Boolean(process.env.FEEDBACK_TO&&process.env.SMTP_HOST&&process.env.SMTP_USER&&process.env.SMTP_PASS);
-const mailTransport=smtpConfigured?nodemailer.createTransport({
- host:process.env.SMTP_HOST,
- port:Number(process.env.SMTP_PORT)||465,
- secure:process.env.SMTP_SECURE!=='0',
- auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS},
- connectionTimeout:10_000,
- greetingTimeout:10_000,
- socketTimeout:15_000
-}):null;
+const resendSender=createResendSender({apiKey:process.env.RESEND_API_KEY,from:process.env.FEEDBACK_FROM});
 const feedback=createFeedbackService({
  recipient:process.env.FEEDBACK_TO,
  environment:buildInfo.environment,
  version:buildInfo.version,
- sendMail:mailTransport?message=>mailTransport.sendMail({...message,from:process.env.SMTP_USER}):null
+ sendMail:resendSender
 });
 const app = express();
 const server = http.createServer(app);

@@ -61,7 +61,7 @@ test('feedback form and delivery messages translate',()=>{
  assert.equal(translateControl('Feedback','bg'),'Мнение');
  assert.equal(translateControl('Send feedback','bg'),'Изпрати мнението');
  assert.equal(translateText('Rules recommendation','bg'),'Препоръка за правилата');
- assert.equal(translateText('Thank you. Your feedback was sent.','bg'),'Благодарим. Мнението ви беше изпратено.');
+ assert.equal(translateText('Thank you. Your feedback was saved.','bg'),'Благодарим. Мнението ви беше запазено.');
  assert.equal(translateText('Daily feedback limit reached. Please try again tomorrow.','bg'),'Достигнахте дневния лимит. Опитайте отново утре.');
 });
 

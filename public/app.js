@@ -598,7 +598,7 @@ $("#feedbackForm").onsubmit=event=>{
  socket.emit("submitFeedback",{type:$("#feedbackType").value,message:$("#feedbackMessage").value,website:$("#feedbackWebsite").value},response=>{
   button.disabled=false;
   if(!response?.ok){toast(response?.error);return}
-  $("#feedbackDialog").close();$("#feedbackForm").reset();toast("Thank you. Your feedback was sent.");
+  $("#feedbackDialog").close();$("#feedbackForm").reset();toast("Thank you. Your feedback was saved.");
  });
 };
 document.querySelectorAll("[data-rules-lang]").forEach(button=>button.onclick=()=>{

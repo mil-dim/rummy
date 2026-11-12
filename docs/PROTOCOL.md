@@ -1,6 +1,6 @@
 # Tabletop client protocol
 
-Protocol version: **12**
+Protocol version: **13**
 
 The Node server is authoritative. Browser and future mobile clients render the
 public state they receive and submit requested actions; they never decide
@@ -60,6 +60,20 @@ The server emits:
 - `roomLeft { id }`: clears the room in all connected tabs of the leaving session.
 
 Private Rummy, Santase and Blato hands are redacted for opponents and watchers.
+
+## External bot clients
+
+Bots use the same Socket.IO events, acknowledgements and viewer-specific `room`
+projection as browser players. They never receive an opponent's private hand,
+the future stock order, the unrevealed Blato talon or any server room object.
+The optional Socket.IO handshake `auth.botToken` only marks an external client
+as a bot when it matches the server's `BOT_TOKEN`; it grants no additional game
+permissions or state. Public player views then contain `bot:true`, allowing the
+UI to show a robot marker and operations reports to distinguish automation.
+
+The supplied companion accepts an ordinary actionable `gameInvitation` and
+answers with the existing `respondInvitation` event. It does not create rooms,
+start games, approve accounts or call the private operations listener.
 
 ## Rummy actions
 

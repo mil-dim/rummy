@@ -19,6 +19,36 @@ Open `http://VM-IP:8080` on the LAN. For internet play, place it behind an HTTPS
 reverse proxy such as Caddy, Nginx Proxy Manager, or your existing proxy. The
 proxy must pass WebSocket connections.
 
+### Optional external bot player
+
+The `bot` Compose service is a separate process that connects to `tabletop` as
+an ordinary player. It receives only the same viewer-specific state sent to a
+human browser. Set one shared secret in the environment directory's `.env`:
+
+```sh
+BOT_TOKEN=replace-with-the-output-of-openssl-rand-hex-32
+```
+
+Generate the value with `openssl rand -hex 32`, then recreate both services once
+when no games are active:
+
+```sh
+docker compose up -d --build --force-recreate tabletop bot
+docker compose logs --tail=50 bot
+```
+
+The bot appears in the lobby as **🤖 Tabletop Bot**. Create a room and invite it
+with the normal Invite button. It accepts available invitations automatically;
+the human host still chooses the match settings and starts each game. Up to four
+bots can be exposed with `BOT_COUNT=1..4`. With no `BOT_TOKEN`, the companion
+stays disabled and does not connect.
+
+The first casual strategy implementation supports Backgammon variants, Santase,
+Blato and natural (non-joker) Rummy melds. Its decisions are deliberately simple
+and slightly randomized. Bots cannot participate in rated matches because they
+have no approved Google account. Bot sessions and bot games are excluded from
+the visitor/marketing usage report.
+
 ## Rummy rules implemented
 
 - 13 cards; two decks plus two jokers.

@@ -26,7 +26,7 @@ test('watchers receive live public state, resume safely, cannot play, and leave 
  assert.equal((await send(watcher,'watchRoom',{id:made.id})).ok,true);
  assert.equal(watcher.room.role,'watcher');assert.equal(watcher.room.players.length,2);assert.equal(watcher.room.hostId,a.identity.player.id);
  const lobby=watcher.lobby.find(r=>r.id===made.id);assert.deepEqual(lobby.playerList.map(p=>p.name),['Host','Player']);assert.equal(lobby.watchers[0].name,'Watch');assert.equal(lobby.status,'waiting');
- for(const member of [...lobby.playerList,...lobby.watchers])assert.deepEqual(Object.keys(member).sort(),['account','connected','id','name']);
+ for(const member of [...lobby.playerList,...lobby.watchers])assert.deepEqual(Object.keys(member).sort(),['account','bot','connected','id','name']);
  const started=event(watcher,'room',r=>!!r.game),bStarted=event(b,'room',r=>!!r.game);
  assert.equal((await send(a,'startGame',{sprintCount:2})).ok,true);await Promise.all([started,bStarted]);
  let g=watcher.room.game;assert.equal(watcher.room.protocolVersion,13);

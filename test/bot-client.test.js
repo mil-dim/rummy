@@ -39,4 +39,8 @@ test("companion bot accepts a normal invitation and makes a projected game actio
   const afterRoll = await botRolled;
   assert.ok(afterRoll.game.rollHistory.some(roll => roll.playerId === botId && roll.kind === "opening"));
   assert.equal(identity.player.bot, false);
+
+  const emptyLobby = waitEvent(human, "lobby", rooms => !rooms.some(room => room.id === made.id));
+  assert.equal((await send(human, "leaveRoom")).ok, true);
+  await emptyLobby; // The bot does not keep an abandoned one-player room alive.
 });

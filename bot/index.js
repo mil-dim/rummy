@@ -17,7 +17,7 @@ if (!token) {
 
 function startBot(index) {
   const name = index ? `${baseName} ${index + 1}` : baseName;
-  let sessionToken = "", playerId = "", latestRoom = null, timer = null, inFlight = false, lastAttempt = "";
+  let sessionToken = "", playerId = "", latestRoom = null, timer = null, inFlight = false, leaving = false, lastAttempt = "";
   const socket = io(url, {
     auth: { botToken: token },
     reconnection: true,
@@ -59,6 +59,14 @@ function startBot(index) {
 
   socket.on("room", room => {
     latestRoom = room;
+    if (!leaving && room.role === "player" && room.players.length === 1 && room.players[0].id === playerId) {
+      leaving = true;
+      socket.emit("leaveRoom", {}, response => {
+        leaving = false;
+        if (!response?.ok) console.error(`${name}: could not leave an empty table: ${response?.error}`);
+      });
+      return;
+    }
     consider();
   });
 

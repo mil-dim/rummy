@@ -1,3 +1,4 @@
+import "./quick-help.js";
 import {suggestName} from "./room-names.js";
 import { backgammonSound, boardView, moveDestination, variantName } from "./backgammon-view.js";
 import { translateInterface, translateText } from "./i18n.js";

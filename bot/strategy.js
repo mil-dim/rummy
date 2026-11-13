@@ -32,12 +32,10 @@ function scoreBackgammonMove(game, move, side) {
     } else points[move.from].owner = null;
   }
 
-  let hit = 0;
   if (to < 0) borneOff[side]++;
   else {
     const target = points[to];
     if (target.owner !== null && target.owner !== side) {
-      hit = 1;
       if (game.variant === "tapa") target.pinned = target.owner;
       else bar[1 - side]++;
       target.owner = side;
@@ -48,11 +46,68 @@ function scoreBackgammonMove(game, move, side) {
     }
   }
 
-  const madePoints = points.filter(point => point.owner === side && point.count >= 2).length;
-  const blots = points.filter(point => point.owner === side && point.count === 1).length;
-  const pip = points.reduce((sum, point, index) => point.owner === side
-    ? sum + point.count * (backgammonRank(game, index, side) + 1) : sum, 0) + bar[side] * 25;
-  return borneOff[side] * 120 + hit * 28 + madePoints * 7 - blots * 5 - bar[side] * 60 - pip * 0.15;
+  const position = { ...game, points, bar, borneOff };
+  return evaluateBackgammon(position, side);
+}
+
+export function evaluateBackgammon(game, side) {
+  const other = 1 - side;
+  const rank = (index, who = side) => backgammonRank(game, index, who);
+  const owns = (index, who = side) => game.points[index].owner === who;
+  const blocked = index => {
+    const point = game.points[index];
+    return point.owner === other && (game.variant === "gulbara" || point.count >= 2 || point.pinned !== undefined);
+  };
+  let score = game.borneOff[side] * 120 - game.bar[side] * 60 + game.bar[other] * 28;
+  let chain = 0;
+  for (let r = 0; r < 24; r++) {
+    const index = backgammonPhysical(game, r, side), point = game.points[index];
+    const mine = owns(index);
+    const made = mine && (game.variant === "gulbara" || point.count >= 2);
+    chain = made ? chain + 1 : 0;
+    if (chain >= 2) score += 3 * Math.min(chain, 6);
+    if (point.pinned === side) {
+      score -= 70 + point.count * 3;
+      if (r === 23) score -= 100000;
+    }
+    if (!mine) continue;
+    score -= point.count * (r + 1) * 0.15;
+    if (game.variant === "gulbara") {
+      // Every occupied point blocks; spread into the opponent's remaining route.
+      const opponentsBehind = game.points.reduce((sum, p, i) =>
+        p.owner === other && rank(i, other) > rank(index, other) ? sum + p.count : sum, 0);
+      score += 12 + Math.min(opponentsBehind, 8) * 2;
+      score -= Math.max(0, point.count - 2) * 1.5;
+      if (r > 0) {
+        let exits = 0;
+        for (let die = 1; die <= 6 && die <= r; die++)
+          if (!blocked(backgammonPhysical(game, r - die, side))) exits++;
+        score -= (6 - exits) * Math.min(point.count, 4) * 2;
+        if (!exits && r >= 6) score -= point.count * 14;
+      }
+    } else if (game.variant === "tapa") {
+      const opponentRank = rank(index, other);
+      if (point.pinned === other) {
+        score += 85 + Math.min(point.count - 1, 3) * 14;
+        if (opponentRank === 23) score += 100000;
+      }
+      if (point.count >= 2) score += 9 + (opponentRank >= 18 ? 10 : 0);
+      // Keep a defended mother checker and reinforce forward trapping positions.
+      if (r === 23 && point.count === 1) score -= 35;
+      if (point.count === 1 && point.pinned === undefined) score -= 4;
+    } else {
+      if (point.count >= 2) score += r < 6 ? 21 : 9;
+      if (point.count === 1) {
+        let threats = 0;
+        for (let i = 0; i < 24; i++) if (owns(i, other)) {
+          const distance = rank(i, other) - rank(index, other);
+          if (distance > 0 && distance <= 6) threats++;
+        }
+        score -= 3 + threats * (r < 6 ? 7 : 11);
+      }
+    }
+  }
+  return score;
 }
 
 function backgammonAction(game, playerId, random) {
@@ -232,7 +287,7 @@ function addToMeld(game, hand) {
 
 function discardCard(hand) {
   const utility = card => {
-    if (card.rank === "JOKER") return -100;
+    if (card.rank === "JOKER") return 100;
     const rank = rummyRank(card.rank);
     const sameRank = hand.filter(other => other.id !== card.id && other.rank === card.rank).length;
     const neighbors = hand.filter(other => other.id !== card.id && other.suit === card.suit

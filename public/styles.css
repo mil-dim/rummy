@@ -144,3 +144,8 @@ header nav{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 .site-footer{display:grid;justify-items:center;gap:8px;padding:20px 24px;font-size:12px;color:#625e55}.site-footer nav{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}.site-footer a,.legal-header a,.legal-page a{color:var(--green);font-weight:700}.legal-header nav a{text-decoration:none}.legal-page{max-width:820px;padding-top:48px}.legal-page article{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:clamp(24px,5vw,52px);line-height:1.65}.legal-page h1{font:700 clamp(38px,6vw,58px) Georgia;margin:8px 0 12px}.legal-page h2{font:700 25px Georgia;margin:32px 0 8px}.legal-page p{margin:10px 0}.legal-page strong{overflow-wrap:anywhere}
 [hidden]{display:none!important}
 
+
+.quick-help{background:#f5f8ef;border:1px solid #b8c9ab;border-left:4px solid var(--green);border-radius:12px;padding:12px 16px;margin:14px 0 22px;max-width:850px;line-height:1.5}
+.quick-help summary{cursor:pointer;font-weight:700;color:var(--green)}
+.quick-help p{margin:9px 0}.quick-help small{color:#625e55}
+.panel .quick-help{max-width:540px;background:var(--paper)}

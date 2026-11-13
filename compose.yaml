@@ -16,6 +16,7 @@ services:
       PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-}"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      BOT_TOKEN: "${BOT_TOKEN:-}"
       TRUST_PROXY: "${TRUST_PROXY:-0}"
     volumes:
       - runtime-data:/data
@@ -29,6 +30,32 @@ services:
     mem_limit: 256m
     cpus: 1.0
     pids_limit: 100
+
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - tabletop
+    environment:
+      GAME_URL: "http://tabletop:8080"
+      BOT_TOKEN: "${BOT_TOKEN:-}"
+      BOT_NAME: "${BOT_NAME:-Tabletop Bot}"
+      BOT_COUNT: "${BOT_COUNT:-1}"
+      BOT_MIN_DELAY_MS: "${BOT_MIN_DELAY_MS:-650}"
+      BOT_MAX_DELAY_MS: "${BOT_MAX_DELAY_MS:-1400}"
+    read_only: true
+    tmpfs:
+      - /tmp:size=4m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 96m
+    cpus: 0.5
+    pids_limit: 50
 
 volumes:
   runtime-data:

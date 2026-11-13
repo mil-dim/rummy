@@ -37,7 +37,7 @@ let signedAccount=null,authConfigured=false,feedbackConfigured=false;
 let me=null,room=null,selected=new Set(),stagedMelds=[],draggedCard=null,pendingRoom=null,browsingLobby=sessionStorage.getItem("tabletopView")==="lobby",arranging=false,arrangeFrom=null;
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 const player=id=>[...(room?.players||[]),...(room?.formerPlayers||[])].find(candidate=>candidate.id===id);
-const playerName=id=>`<span data-no-translate>${esc(player(id)?.name||"Player")}</span>`;
+const playerName=id=>{const item=player(id);return `<span data-no-translate>${item?.bot?"🤖 ":""}${esc(item?.name||"Player")}</span>`};
 const gameIsFinished=game=>Boolean(game?.winner||game?.finished);
 const toast=message=>{const element=$("#toast");element.textContent=translateText(String(message||"Something went wrong."),uiLanguage);element.style.display="block";setTimeout(()=>element.style.display="none",3000)};
 function renderAccount(){
@@ -106,7 +106,7 @@ $("#signOut").onclick=()=>{
 function gameTypeName(type){return ({rummy:"Bulgarian Rummy (Joker)",backgammon:"Backgammon",santase:"Santase (66)",blato:"Blato (3-5-8)"})[type]||type}
 function canInvite(person){return Boolean(room?.role==="player"&&!room.game&&room.players.length<room.maxPlayers&&!maintenance&&person.id!==me?.id&&person.connected&&person.roomId!==room.id)}
 function renderPeople(){
- $("#people").innerHTML=lobbyPeople.map(person=>`<p><span><span data-no-translate>${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</span>${canInvite(person)?` <button class="small ghost" data-invite="${esc(person.id)}">Invite</button>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();
+ $("#people").innerHTML=lobbyPeople.map(person=>`<p><span><span data-no-translate>${person.bot?"🤖 ":""}${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</span>${canInvite(person)?` <button class="small ghost" data-invite="${esc(person.id)}">Invite</button>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();
 }
 socket.on("people",people=>{lobbyPeople=people;renderPeople()});
 document.addEventListener("click",event=>{const id=event.target.closest?.("[data-invite]")?.dataset.invite;if(id)socket.emit("invitePlayer",{playerId:id},response=>response?.ok?toast("Invitation sent."):toast(response?.error))});
@@ -134,7 +134,7 @@ socket.on("maintenance",notice=>{maintenance=notice;renderMaintenance();renderLo
 setInterval(renderMaintenance,1000);
 
 let lobbyRooms=[];
-function memberList(members){return members?.length?members.map(member=>`<span class="member-name">${member.connected?"●":"○"} <span data-no-translate>${esc(member.name)}</span></span>`).join(" "):"<span>None</span>"}
+function memberList(members){return members?.length?members.map(member=>`<span class="member-name">${member.connected?"●":"○"} <span data-no-translate>${member.bot?"🤖 ":""}${esc(member.name)}</span></span>`).join(" "):"<span>None</span>"}
 function currentGameLabel(item){
  const game=item.currentGame;if(!game)return "";
  const rated=game.rated?" · Rated":"";
@@ -243,7 +243,7 @@ function showRoom(next){
  renderLobby();
  $("#roomCode").textContent=`ROOM ${room.id} · ${gameTypeName(room.gameType)}`;
  $("#roomName").textContent=room.name;
- $("#players").innerHTML=room.players.map((item,index)=>`<span>${room.gameType==="backgammon"?`<i class="player-checker side-${room.game?room.game.players.indexOf(item.id):index}" aria-hidden="true"></i><span>${(room.game?room.game.players.indexOf(item.id):index)===0?"White":"Red"}</span> `:""}${item.connected?"●":"○"} <span data-no-translate>${esc(item.name)}</span></span>`).join("");
+ $("#players").innerHTML=room.players.map((item,index)=>`<span>${room.gameType==="backgammon"?`<i class="player-checker side-${room.game?room.game.players.indexOf(item.id):index}" aria-hidden="true"></i><span>${(room.game?room.game.players.indexOf(item.id):index)===0?"White":"Red"}</span> `:""}${item.connected?"●":"○"} <span data-no-translate>${item.bot?"🤖 ":""}${esc(item.name)}</span></span>`).join("");
  $("#watchers").innerHTML=`<strong>Watchers</strong>: ${memberList(room.watchers)}`;
  $("#watchingNotice").hidden=room.role!=="watcher";
  $("#leaveGame").textContent=room.role==="watcher"?"Stop watching":"Leave game";

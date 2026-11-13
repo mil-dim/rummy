@@ -5,6 +5,22 @@ Run these commands from the environment directory, e.g. `~/rummy/qa` or
 The initial upgrade from 1.0.11 must be arranged manually while no one is playing:
 old versions do not have these commands. Container restarts still lose game state.
 
+## Bot service
+
+Set `BOT_TOKEN` to the same long random value for `tabletop` and `bot` through
+the environment's `.env`; Compose passes it to both without publishing a bot
+port. Check the companion with:
+
+```sh
+docker compose ps
+docker compose logs --tail=100 bot
+```
+
+An idle authenticated bot is excluded from `onlineUsers` and therefore does not
+block a safe deployment. Any unfinished room containing a bot still blocks the
+deployment normally. This preserves active games while avoiding a permanently
+connected lobby bot making every maintenance window impossible.
+
 ## Private control API
 
 Compose enables a separate HTTP listener on **127.0.0.1:9090 inside the container**.

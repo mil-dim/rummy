@@ -7,7 +7,7 @@ import {createFeedbackService} from "./lib/feedback.js";
 import {createFeedbackStore} from "./lib/feedback-store.js";
 import express from "express";
 import { readFileSync, readdirSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { Server } from "socket.io";
@@ -55,6 +55,7 @@ const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
 const PROTOCOL_VERSION = 13;
+const botToken = String(process.env.BOT_TOKEN || "");
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
     .split(",")
@@ -119,6 +120,13 @@ function connectionAllowed(req) {
   }
   entry.count += 1;
   return entry.count <= MAX_CONNECTIONS_PER_WINDOW;
+}
+
+function validBotToken(value) {
+  if (!botToken || typeof value !== "string") return false;
+  const supplied = Buffer.from(value);
+  const expected = Buffer.from(botToken);
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
 const io = new Server(server, {
@@ -226,9 +234,10 @@ function clearRoomInvitations(roomId){
 function checkMaintenance(){if(maintenance)throw Error("Maintenance announced. New games are paused.")}
 function adminStatus(){
  const users=people(),unfinished=[...rooms.values()].filter(r=>r.game&&!gameFinished(r.game));
- return {build:buildInfo,maintenance,onlineUsers:users.filter(p=>p.connected).length,people:users,
+ const humans=users.filter(p=>!p.bot);
+ return {build:buildInfo,maintenance,onlineUsers:humans.filter(p=>p.connected).length,people:users,
   rooms:lobby(),unfinishedGames:unfinished.map(r=>({id:r.id,name:r.name,gameType:r.gameType})),
-  safeToDeploy:Boolean(maintenance&&Date.now()>=maintenance.deadline&&users.every(p=>!p.connected)&&!unfinished.length),
+  safeToDeploy:Boolean(maintenance&&Date.now()>=maintenance.deadline&&humans.every(p=>!p.connected)&&!unfinished.length),
   memory:process.memoryUsage(),cpuMicros:process.cpuUsage(),uptimeSeconds:process.uptime(),audit:audit.status(),scores:scoreStore.status()};
 }
 const admin=startAdmin({port:process.env.ADMIN_PORT,tokenPath:process.env.ADMIN_TOKEN_FILE,status:adminStatus,
@@ -241,6 +250,7 @@ const admin=startAdmin({port:process.env.ADMIN_PORT,tokenPath:process.env.ADMIN_
 
 function playerView(player) {
   return { id: player.id, name: player.name, connected: Boolean(player.socketId),
+    bot: Boolean(player.bot),
     account:player.account?{signedIn:true,approved:Boolean(player.account.approved),displayName:player.account.displayName}:null };
 }
 
@@ -382,6 +392,7 @@ io.on("connection", socket => {
   }
 
   socket.data.account=googleAuth.accountFromHeader(socket.handshake.headers.cookie);
+  socket.data.isBot=validBotToken(socket.handshake.auth?.botToken);
   const eventRate = { startedAt: Date.now(), count: 0 };
   socket.use((_packet, next) => {
     const now = Date.now();
@@ -422,6 +433,7 @@ io.on("connection", socket => {
         player = {
           id: randomUUID(),
           name: cleanText(payload.name, "Player", 24),
+          bot: Boolean(socket.data.isBot),
           socketId: socket.id,
           lastSeen: Date.now()
         };
@@ -429,6 +441,7 @@ io.on("connection", socket => {
       }
 
       player.name = cleanText(payload.name, player.name, 24);
+      player.bot = Boolean(socket.data.isBot);
       player.account=socket.data.account||null;
       player.socketId = socket.id;
       player.lastSeen = Date.now();
@@ -436,7 +449,7 @@ io.on("connection", socket => {
       socket.data.token = token;
       const locale=cleanText(payload.locale,"",20)||null,timeZone=cleanText(payload.timeZone,"",50)||null;
       const country=/^[A-Za-z]{2}$/.test(payload.country||"")?String(payload.country).toUpperCase():null;
-      try{socket.data.visitId=scoreStore.startUsageVisit({playerId:player.id,accountId:player.account?.id||null,
+      try{socket.data.visitId=player.bot?null:scoreStore.startUsageVisit({playerId:player.id,accountId:player.account?.id||null,
        displayName:player.name,country,locale,timeZone})}catch(error){console.error('Usage visit failed:',error.message)}
 
       emitPeople();
@@ -697,7 +710,7 @@ io.on("connection", socket => {
         : room.gameType === "santase" ? newSantase(room.players,{gameNumber:room.gameNumber,dealer:room.match.dealer})
         : newBlato(room.players,{gameNumber:room.gameNumber,targets:room.match.nextTargets,
           previousScores:room.match.previousScores});
-      try{room.reportGameId=scoreStore.startUsageGame({roomId:room.id,roomName:room.name,gameType:room.gameType,
+      try{room.reportGameId=room.players.some(member=>member.bot)?null:scoreStore.startUsageGame({roomId:room.id,roomName:room.name,gameType:room.gameType,
        variant:room.game.variant||null,gameNumber:room.game.gameNumber,players:room.players.map(member=>({playerId:member.id,
         accountId:member.account?.id||null,displayName:member.name}))})}catch(error){console.error('Usage game start failed:',error.message)}
       usageEvent(socket,'game-started',room);

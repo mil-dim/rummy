@@ -1,4 +1,4 @@
-import { chooseAction } from './strategy.js';
+import { chooseAction, urgentBearOffMoves } from './strategy.js';
 
 const integer = (value, fallback, min, max) => Number.isFinite(Number(value)) && value !== '' && value !== undefined
   ? Math.max(min, Math.min(max, Math.floor(Number(value)))) : fallback;
@@ -49,6 +49,13 @@ export function createAiChooser({ env = process.env, fetchImpl = globalThis.fetc
 
   return async function choose(room, playerId) {
     const fallback = chooseAction(room, playerId);
+    const game = room?.game, side = game?.players?.indexOf(playerId);
+    if (game?.kind === 'backgammon' && room.role === 'player' && side >= 0
+        && game.turn === side && game.phase === 'play' && !game.winner && !game.resignationOffer
+        && urgentBearOffMoves(game, side).length) {
+      log({ event: 'bot_tactical_move', reason: 'save_mars', from: fallback.from, dieIndex: fallback.dieIndex });
+      return fallback;
+    }
     const decision = enabled && decisionInput(room, playerId);
     if (!decision || decision.actions.length < 2 || busy || now() < cooldownUntil) return fallback;
     const today = new Date(now()).toISOString().slice(0, 10);

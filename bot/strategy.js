@@ -110,6 +110,19 @@ export function evaluateBackgammon(game, side) {
   return score;
 }
 
+export function bearsOff(game, move, side) {
+  return move.from !== "bar" && backgammonRank(game, move.from, side) - game.dice[move.dieIndex] < 0;
+}
+
+export function urgentBearOffMoves(game, side) {
+  if (game.borneOff[side] !== 0 || game.borneOff[1 - side] < 1) return [];
+  // In a home-board race, taking the first checker off saves the extra Mars point.
+  // Restrict to server-authorized moves: compulsory dice use is preserved.
+  const allHome = [0, 1].every(who => !game.bar[who] && game.points.every((point, index) =>
+    point.owner !== who && point.pinned !== who || backgammonRank(game, index, who) < 6));
+  return allHome ? (game.legalMoves || []).filter(move => bearsOff(game, move, side)) : [];
+}
+
 function backgammonAction(game, playerId, random) {
   const side = ownSide(game, playerId);
   if (side < 0 || game.winner) return null;
@@ -119,7 +132,8 @@ function backgammonAction(game, playerId, random) {
   if (game.players[game.turn] !== playerId) return null;
   if (game.phase === "roll") return { type: "roll" };
   if (game.phase !== "play" || !game.legalMoves?.length) return null;
-  const scored = game.legalMoves.map(move => ({ move, score: scoreBackgammonMove(game, move, side) }))
+  const urgent = urgentBearOffMoves(game, side);
+  const scored = (urgent.length ? urgent : game.legalMoves).map(move => ({ move, score: scoreBackgammonMove(game, move, side) }))
     .sort((a, b) => b.score - a.score);
   const nearBest = scored.filter(item => item.score >= scored[0].score - 2.5).slice(0, 3);
   const selected = choose(nearBest, random).move;

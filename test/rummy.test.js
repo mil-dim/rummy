@@ -94,8 +94,11 @@ test("joker has an exact declared identity and can be replaced only after an ear
 
 test("unopened opponent is a 100 point full hand",()=>{
   const winning=[card("A","♣"),card("2","♣"),card("3","♣")];
-  const state=game(winning,[card("K","♠"),card("3","♦")]);
+  const last=card("9","♦");
+  const state=game([...winning,last],[card("K","♠"),card("3","♦")]);
   rummyAction(state,"p1",{type:"meldBatch",melds:[{cardIds:winning.map(c=>c.id)}]});
+  assert.equal(state.winner,null);
+  rummyAction(state,"p1",{type:"discard",cardId:last.id});
   assert.equal(state.winner,"p1");
   assert.equal(state.scores.players.p2.raw,100);
   assert.equal(state.scores.awarded,10);
@@ -279,4 +282,30 @@ test('remaining hands are private during play and revealed to everyone only afte
   const view=publicRummy(g,viewer);
   for(const id of g.players)assert.deepEqual(view.hands[id],g.hands[id]);
  }
+});
+
+test('last card cannot be added to win; rejection is atomic and discard wins',()=>{
+ const last=card('4','♣'),state=game([last]);state.opened.p1=true;
+ state.melds=[{id:'m',owner:'p2',type:'run',cards:[card('A','♣'),card('2','♣'),card('3','♣')]}];
+ const before=structuredClone(state);
+ assert.throws(()=>rummyAction(state,'p1',{type:'add',meldId:'m',cardIds:[last.id]}),/final discard/);
+ assert.deepEqual(state,before);
+ rummyAction(state,'p1',{type:'discard',cardId:last.id});assert.equal(state.winner,'p1');
+});
+test('two cards plus a draw cannot all be melded, even for an opened player',()=>{
+ for(const opened of [false,true]){
+  const a=card('A','♣'),two=card('2','♣'),three=card('3','♣'),state=game([a,two]);
+  state.opened.p1=opened;state.phase='draw';state.stock=[three];
+  rummyAction(state,'p1',{type:'draw',from:'stock'});const before=structuredClone(state);
+  for(const type of ['meld','meldBatch']){
+   const ids=[a.id,two.id,three.id];
+   const action=type==='meld'?{type,cardIds:ids}:{type,melds:[{cardIds:ids}]};
+   assert.throws(()=>rummyAction(state,'p1',action),/final discard/);assert.deepEqual(state,before);
+  }
+ }
+});
+test('high-point batch must also leave a final discard',()=>{
+ const cards=[card('J'),card('Q'),card('K'),card('A'),card('5','♣'),card('5','♦'),card('5','♠')],state=game(cards);
+ assert.throws(()=>rummyAction(state,'p1',{type:'meldBatch',melds:[{cardIds:cards.slice(0,4).map(c=>c.id)},{cardIds:cards.slice(4).map(c=>c.id)}]}),/final discard/);
+ assert.equal(state.winner,null);assert.equal(state.hands.p1.length,7);
 });

@@ -37,7 +37,8 @@ const bg = {
   'Roll': 'Хвърли заровете',
   'Roll to start': 'Хвърли за начало'
   ,'Play card':'Играй картата','Claim 66':'Обяви 66','Close talon':'Затвори талона','Exchange trump 9':'Смени козовата деветка',
-  'Give selected card':'Дай избраната карта','Return selected four cards':'Върни избраните четири карти','No trump':'Без коз','Pass':'Пас'
+  'Give selected card':'Дай избраната карта','Return selected four cards':'Върни избраните четири карти','No trump':'Без коз','Pass':'Пас',
+  'Roll dice':'Хвърли заровете','Buy Fortune':'Купи Съдба','End turn':'Край на хода','Return materials':'Върни материалите','Trade':'Размени','Offer trade':'Предложи размяна','Accept trade':'Приеми размяната','Cancel trade':'Отмени размяната'
 };
 
 export function translateControl(text, language) {
@@ -96,7 +97,7 @@ const labels = {
  'Optional: results will update the public rating.':'По желание: резултатите ще променят публичния рейтинг.',
  'Rated play requires every player to sign in and receive approval.':'За мач с рейтинг всеки играч трябва да влезе и да бъде одобрен.',
  'No rated matches yet.':'Все още няма мачове с рейтинг.', 'Ratings are temporarily unavailable.':'Рейтингът временно не е достъпен.',
- 'Bulgarian Rummy':'Българско реми', 'Backgammon rotation':'Редувана табла', 'Santase (66)':'Сантасе (66)', 'Blato (3-5-8)':'Блато (3-5-8)',
+ 'Bulgarian Rummy':'Българско реми', 'Backgammon rotation':'Редувана табла', 'Santase (66)':'Сантасе (66)', 'Blato (3-5-8)':'Блато (3-5-8)', 'Crossroads of Thrace':'Тракийски кръстопътища',
  'Game invitation':'Покана за игра', 'invited you to':'ви покани на', 'Invitation sent.':'Поканата е изпратена.', 'Current game':'Текуща игра',
  'You are at another table. You can use this invitation after you leave it.':'Вече сте на друга маса. Можете да използвате поканата, след като я напуснете.',
  'Planned restart in':'Планирано рестартиране след', 'Maintenance is due. Waiting for the operator.':'Времето за поддръжка настъпи. Изчаква се операторът.',
@@ -138,7 +139,7 @@ const labels = {
  'Your name':'Вашето име', 'GAME LOBBY':'ЛОБИ', 'Choose your table':'Изберете маса',
  'Your seat is reserved. Leave before joining another table.':'Мястото ви е запазено. Напуснете, преди да се присъедините към друга маса.',
  'No open rooms yet.':'Все още няма отворени стаи.', 'Open a table':'Отворете маса',
- 'Bulgarian Rummy':'Българско реми', 'Bulgarian Rummy (Joker)':'Българско реми (Жокер)', 'Backgammon':'Табла', 'rummy':'реми', 'backgammon':'табла', 'santase':'сантасе', 'blato':'блато',
+ 'Bulgarian Rummy':'Българско реми', 'Bulgarian Rummy (Joker)':'Българско реми (Жокер)', 'Backgammon':'Табла', 'rummy':'реми', 'backgammon':'табла', 'santase':'сантасе', 'blato':'блато', 'crossroads':'тракийски кръстопътища',
  'Players':'Играчи', 'Player':'Играч', 'Rummy match':'Мач по реми', 'Backgammon match':'Мач по табла',
  'Sprint cycles':'Спринтови цикли', 'Number of games':'Брой партии',
  'With N players, every N+1 game is a double-points sprint.':'При N играчи всяка (N+1)-ва партия е спринт с двойни точки.',
@@ -196,8 +197,8 @@ export function translateText(text, language) {
    .replace(/^Gulbara · /,'Гюлбара · ')
    .replace(/^Tapa · /,'Тапа · ')
    .replace(/Round (\d+) of (\d+)/g,'Кръг $1 от $2')
-   .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon|santase|blato)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
-   .replace(/^ROOM ([A-Za-z0-9]+) · (Bulgarian Rummy \(Joker\)|Backgammon|Santase \(66\)|Blato \(3-5-8\))$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
+   .replace(/^ROOM ([A-Za-z0-9]+) · (rummy|backgammon|santase|blato|crossroads)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
+   .replace(/^ROOM ([A-Za-z0-9]+) · (Bulgarian Rummy \(Joker\)|Backgammon|Santase \(66\)|Blato \(3-5-8\)|Crossroads of Thrace)$/,(_,id,kind)=>`СТАЯ ${id} · ${labels[kind]}`)
    .replace(/^(\d+)\/(\d+) players · (.+)$/, '$1/$2 играчи · $3')
    .replace(/Game (\d+) of (\d+)/g,'Партия $1 от $2')
    .replace(/Game (\d+)/g,'Партия $1')

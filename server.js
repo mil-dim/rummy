@@ -15,6 +15,7 @@ import { newRummy, publicRummy, rummyAction, forfeitRummy } from "./lib/rummy.js
 import { newBackgammon, backgammonAction, publicBackgammon, forfeitBackgammon } from "./lib/backgammon.js";
 import {newSantase,publicSantase,santaseAction,forfeitSantase} from "./lib/santase.js";
 import {newBlato,publicBlato,blatoAction,forfeitBlato} from "./lib/blato.js";
+import {newCrossroads,publicCrossroads,crossroadsAction,forfeitCrossroads} from "./lib/crossroads.js";
 import {startSantaseMatch,recordSantaseResult,startBlatoMatch,recordBlatoResult} from "./lib/card-matches.js";
 
 import { startBackgammonMatch, recordBackgammonResult, backgammonVariant } from "./lib/backgammon-match.js";
@@ -54,7 +55,7 @@ const CONNECTION_WINDOW_MS = 60_000;
 const MAX_CONNECTIONS_PER_WINDOW = 40;
 const MAX_WATCHERS = 50;
 const WATCHER_IDLE_MS = 10 * 60 * 1000;
-const PROTOCOL_VERSION = 13;
+const PROTOCOL_VERSION = 14;
 const botToken = String(process.env.BOT_TOKEN || "");
 const configuredOrigins = new Set(
   String(process.env.PUBLIC_ORIGINS || "")
@@ -291,7 +292,8 @@ function emitRoom(room, touch = true) {
     const state = room.game?.kind === "rummy" ? publicRummy(room.game, viewer)
       : room.game?.kind === "backgammon" ? publicBackgammon(room.game, viewer)
       : room.game?.kind === "santase" ? publicSantase(room.game, viewer)
-      : room.game?.kind === "blato" ? publicBlato(room.game, viewer) : room.game;
+      : room.game?.kind === "blato" ? publicBlato(room.game, viewer)
+      : room.game?.kind === "crossroads" ? publicCrossroads(room.game, viewer) : room.game;
     if (player.socketId) {
       io.to(player.socketId).emit("room", {
         protocolVersion: PROTOCOL_VERSION,
@@ -335,11 +337,24 @@ function recordRummyResult(room) {
   room.match.finished = Boolean(room.match.endAfterHand) || room.match.completedGames >= room.match.totalGames;
 }
 
+function startCrossroadsMatch(room){
+ room.formerPlayers=[];room.gameNumber=0;
+ room.match={kind:'crossroads',totalGames:1,completedGames:0,cumulative:Object.fromEntries(room.players.map(player=>[player.id,0])),finished:false};
+}
+function recordCrossroadsResult(room){
+ const game=room.game;if(game?.kind!=='crossroads'||!game.finished||game.resultRecorded)return;
+ game.resultRecorded=true;room.match.completedGames=1;
+ for(let side=0;side<game.players.length;side++)room.match.cumulative[game.players[side]]=Number(game.scores?.[side]||0);
+ if(game.winner)room.match.cumulative[game.winner]=Math.max(10,room.match.cumulative[game.winner]||0);
+ room.match.finished=true;
+}
+
 function recordResult(room) {
   recordRummyResult(room);
   recordBackgammonResult(room);
   recordSantaseResult(room);
   recordBlatoResult(room);
+  recordCrossroadsResult(room);
   if(room.match?.finished&&gameFinished(room.game)&&room.game.resultRecorded&&room.match.rated&&room.ratingContext&&!room.ratingContext.recorded){
    try{
     const result=scoreStore.recordMatch({id:room.ratingContext.id,roomId:room.id,category:room.ratingContext.category,
@@ -350,7 +365,7 @@ function recordResult(room) {
   }
   if(gameFinished(room.game)&&room.reportGameId){
    const game=room.game,result=game.kind==='rummy'?{scores:game.scores}:game.kind==='backgammon'?{scores:game.scores}:
-    game.kind==='santase'?{awarded:game.awarded,draw:Boolean(game.draw),reason:game.reason}:game.kind==='blato'?{scores:game.scores,winners:game.winners,forfeit:game.forfeit||null}:{};
+     game.kind==='santase'?{awarded:game.awarded,draw:Boolean(game.draw),reason:game.reason}:game.kind==='blato'?{scores:game.scores,winners:game.winners,forfeit:game.forfeit||null}:game.kind==='crossroads'?{scores:game.scores,winner:game.winner,forfeit:game.forfeit||null}:{};
    try{scoreStore.finishUsageGame(room.reportGameId,{winnerPlayerId:game.winner||null,result})}catch(error){console.error('Usage game finish failed:',error.message)}
    room.reportGameId=null;
   }
@@ -518,6 +533,7 @@ io.on("connection", socket => {
       const target=[...sessions.values()].find(candidate=>candidate.id===targetId);
       if(!target||!target.socketId)throw Error("That person is no longer online.");
       if(target===player)throw Error("You are already at this table.");
+      if(room.gameType==="crossroads"&&target.bot)throw Error("Crossroads of Thrace is for human players only.");
       if(findMembership(target.id)?.id===room.id)throw Error("That person is already at this table.");
       target.invitation={id:randomUUID(),roomId:room.id,fromId:player.id,fromName:player.name};
       emitInvitation(target);reply(ack,{ok:true});
@@ -548,7 +564,7 @@ io.on("connection", socket => {
       checkMaintenance();
       if (rooms.size >= MAX_ROOMS) throw Error("The room limit has been reached.");
 
-      const gameType = ["rummy","backgammon","santase","blato"].includes(payload.gameType) ? payload.gameType : "rummy";
+      const gameType = ["rummy","backgammon","santase","blato","crossroads"].includes(payload.gameType) ? payload.gameType : "rummy";
       const id = makeRoomId();
       const room = {
         id,
@@ -556,6 +572,7 @@ io.on("connection", socket => {
         gameType,
         maxPlayers: ["backgammon","santase"].includes(gameType)
           ? 2 : gameType === "blato" ? 3
+          : gameType === "crossroads" ? Math.max(3,Math.min(4,Number(payload.maxPlayers)||3))
           : Math.max(2, Math.min(6, Number(payload.maxPlayers) || 2)),
         players: [player],
         watchers: [],
@@ -586,6 +603,7 @@ io.on("connection", socket => {
       const id = typeof payload.id === "string" ? payload.id.trim().toUpperCase().slice(0, 12) : "";
       const room = rooms.get(id);
       if (!player || !room) throw Error("Room not found.");
+      if (room.gameType === "crossroads" && player.bot) throw Error("Crossroads of Thrace is for human players only.");
 
       if (findWatchedRoom(player.id)) throw Error("Stop watching before joining a table.");
       const currentRoom = findPlayerRoom(player.id);
@@ -649,6 +667,7 @@ io.on("connection", socket => {
         else if(room.game.kind === "backgammon")forfeitBackgammon(room.game, player.id);
         else if(room.game.kind === "santase")forfeitSantase(room.game, player.id);
         else if(room.game.kind === "blato")forfeitBlato(room.game, player.id);
+        else if(room.game.kind === "crossroads")forfeitCrossroads(room.game, player.id);
       }
       if (room.match) {
         room.match.endAfterHand = true;
@@ -681,6 +700,7 @@ io.on("connection", socket => {
       if (room.players.length < 2) throw Error("At least two players are required.");
       if (room.game && !gameFinished(room.game)) throw Error("The current game is still in progress.");
       if (room.gameType === "blato" && room.players.length !== 3) throw Error("Blato requires exactly three players.");
+      if (room.gameType === "crossroads" && ![3,4].includes(room.players.length)) throw Error("Crossroads of Thrace requires three or four players.");
 
       checkMaintenance();
       clearRoomInvitations(room.id);
@@ -702,14 +722,15 @@ io.on("connection", socket => {
       if(room.gameType==="blato"&&(!room.match||room.match.finished)){
         validateRatedMatch(room,payload?.rated===true);startBlatoMatch(room);enableRatedMatch(room,payload?.rated===true,'blato');
       }
+      if(room.gameType==="crossroads"&&(!room.match||room.match.finished))startCrossroadsMatch(room);
       if(room.match?.finished)throw Error("Start a new match first.");
       room.gameNumber += 1;
       room.game = room.gameType === "rummy" ? newRummy(room.players, room.gameNumber)
         : room.gameType === "backgammon" ? newBackgammon(room.players, { gameNumber: room.gameNumber, starter,
           variant: backgammonVariant(room.gameNumber, room.match?.variantMode) })
         : room.gameType === "santase" ? newSantase(room.players,{gameNumber:room.gameNumber,dealer:room.match.dealer})
-        : newBlato(room.players,{gameNumber:room.gameNumber,targets:room.match.nextTargets,
-          previousScores:room.match.previousScores});
+        : room.gameType === "blato" ? newBlato(room.players,{gameNumber:room.gameNumber,targets:room.match.nextTargets,
+          previousScores:room.match.previousScores}) : newCrossroads(room.players,{gameNumber:room.gameNumber});
       try{room.reportGameId=room.players.some(member=>member.bot)?null:scoreStore.startUsageGame({roomId:room.id,roomName:room.name,gameType:room.gameType,
        variant:room.game.variant||null,gameNumber:room.game.gameNumber,players:room.players.map(member=>({playerId:member.id,
         accountId:member.account?.id||null,displayName:member.name}))})}catch(error){console.error('Usage game start failed:',error.message)}
@@ -736,6 +757,7 @@ io.on("connection", socket => {
         if(action.type==="roll"&&room.game.rollNumber>before)audit.record(room,room.game.rollHistory.at(-1));
       }else if(room.game.kind==="santase")santaseAction(room.game,player.id,action);
       else if(room.game.kind==="blato")blatoAction(room.game,player.id,action);
+      else if(room.game.kind==="crossroads")crossroadsAction(room.game,player.id,action);
       recordResult(room);
       emitRoom(room);
       reply(ack, { ok: true });

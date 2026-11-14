@@ -1,7 +1,7 @@
 # Tabletop
 
-Self-hosted real-time Bulgarian Rummy, Santase (66), Blato (3-5-8) and
-Backgammon for a Proxmox VM.
+Self-hosted real-time Bulgarian Rummy, Santase (66), Blato (3-5-8),
+Backgammon, and the original human-only strategy game Crossroads of Thrace.
 
 Guest play requires no account. Optional Google sign-in supports persistent,
 administrator-approved rated profiles; casual games remain available to everyone.

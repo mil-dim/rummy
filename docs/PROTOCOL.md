@@ -370,3 +370,11 @@ in progress without revealing cards or legal moves.
 ## Mandatory final Rummy discard
 
 Every meld batch and table addition must leave at least one card in hand. A normal win occurs only by discarding the last card. The below-44 opening exception requires exactly one remaining card, which must then be discarded; melding an entire three-card hand is rejected. Forfeit scoring remains separate.
+
+## Crossroads of Thrace (protocol 14)
+
+`gameType: crossroads` creates a three- or four-seat, human-only table. The server owns the randomized 19-land board, materials, Fortune deck, bank, raider, structures, turn phases, trades, awards, and victory calculation. `publicCrossroads` exposes the common board and only the viewing player's material identities and Fortune cards; opponents and watchers receive counts. Finished games reveal Fortune identities.
+
+Setup actions are `buildVillage {vertex}` and `buildRoute {edge}` in forward/reverse snake order. Regular actions are `roll`, `discard {resources}`, `moveRaider {tile,victim?}`, `buildRoute`, `buildVillage`, `buildTown {vertex}`, `buyFortune`, `playFortune`, `bankTrade`, `offerTrade`, `acceptTrade`, `cancelTrade`, and `endTurn`. Vertex, edge, cost, supply, ownership, distance, connectivity, trade, discard, award, and turn legality are all revalidated by the server; client highlights are never authority.
+
+The game uses timber, stone, livestock, grain and metal; trade routes, villages and towns; Fortune cards; markets; and the raider. Base-game production, seven/discard, bank and player trading, specialized market rates, Longest Trade Route, Strongest Guard, and first-to-10 victory are supported. Bots cannot be invited to Crossroads tables.

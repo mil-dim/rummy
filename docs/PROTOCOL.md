@@ -366,3 +366,7 @@ Lobby room entries add `currentGame` with public number/total/sprint/rated statu
 for Backgammon, variant/round information. This lets the lobby name the game currently
 in progress without revealing cards or legal moves.
 
+
+## Mandatory final Rummy discard
+
+Every meld batch and table addition must leave at least one card in hand. A normal win occurs only by discarding the last card. The below-44 opening exception requires exactly one remaining card, which must then be discarded; melding an entire three-card hand is rejected. Forfeit scoring remains separate.

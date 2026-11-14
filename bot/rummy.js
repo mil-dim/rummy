@@ -47,7 +47,7 @@ export function meldPlans(hand,opened){
  const candidates=meldCandidates(hand),plans=new Map();let nodes=0;
  function visit(start,used,chosen,points){
   if(++nodes>20000)return;
-  if(chosen.length&&(opened||points>=44||hand.length-used.size<=1)){
+  if(chosen.length&&hand.length-used.size>=1&&(opened||points>=44||hand.length-used.size===1)){
    const action={type:'meldBatch',melds:chosen.map(({cardIds,jokerAssignments})=>({cardIds,jokerAssignments}))};
    const score=used.size*100+points;
    plans.set([...used].sort().join('|'),{action,score,cards:used.size,points});
@@ -106,7 +106,7 @@ export function rummyOptions(game,id){
  }
  if(game.phase!=='play')return [];
  const plans=meldPlans(hand,opened);
- const moves=opened?[...plans,...additions(game,hand)]:plans;
+ const moves=opened?[...plans,...(hand.length>1?additions(game,hand):[])]:plans;
  if(moves.length)return moves.sort((a,b)=>b.score-a.score).slice(0,12);
  if(opened&&game.openedTurn?.[id]!==game.turnNumber){
   for(const meld of game.melds||[])for(const joker of meld.cards){

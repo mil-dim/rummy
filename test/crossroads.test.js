@@ -5,6 +5,7 @@ import {newCrossroads,publicCrossroads,crossroadsAction,crossroadsGeometry,forfe
 const players=['a','b','c','d'].map(id=>({id}));
 
 function finishSetup(game){
+ game.phase='setup-village';game.setupOrder=game.players.map((_,side)=>side);game.turn=0;
  while(game.phase.startsWith('setup-')){
   const id=game.players[game.turn],view=publicCrossroads(game,id);
   if(game.phase==='setup-village')crossroadsAction(game,id,{type:'buildVillage',vertex:view.legalVertices[0]});
@@ -12,13 +13,20 @@ function finishSetup(game){
  }
 }
 
+test('all players roll two dice and only tied leaders reroll before setup',()=>{
+ const game=newCrossroads(players.slice(0,4));let guard=0;
+ while(game.phase==='opening'&&guard++<20)for(const side of [...game.openingCandidates])if(!game.openingRolls[side])crossroadsAction(game,game.players[side],{type:'openingRoll'});
+ assert.equal(game.phase,'setup-village');assert.equal(game.setupOrder.length,4);assert.equal(new Set(game.setupOrder).size,4);assert.equal(game.setupOrder[0],game.turn);
+ assert.throws(()=>crossroadsAction(game,game.players[(game.turn+1)%4],{type:'buildVillage',vertex:0}),/not your turn/);
+});
+
 test('Crossroads board has the standard base-game graph and private hands',()=>{
  assert.equal(crossroadsGeometry.hexes.length,19);assert.equal(crossroadsGeometry.vertices.length,54);assert.equal(crossroadsGeometry.edges.length,72);
  const game=newCrossroads(players.slice(0,3));
  assert.deepEqual(game.tiles.reduce((counts,tile)=>(counts[tile.resource]=(counts[tile.resource]||0)+1,counts),{}),{timber:4,stone:3,livestock:4,grain:4,metal:3,wasteland:1});
  const a=publicCrossroads(game,'a'),watch=publicCrossroads(game,null);
  assert.equal(a.resources[0].timber,0);assert.deepEqual(a.resources[1],{count:0});assert.deepEqual(watch.resources,[{count:0},{count:0},{count:0}]);
- assert.equal(watch.fortunes[0].count,0);assert.equal(a.legalVertices.length,54);
+ assert.equal(watch.fortunes[0].count,0);assert.equal(a.can.openingRoll,true);assert.equal(a.legalVertices.length,0);
 });
 
 test('snake setup enforces distance, grants second-village materials and reaches roll',()=>{
@@ -35,7 +43,7 @@ test('server validates costs, building, bank trades and player trades',()=>{
  Object.assign(game.resources[0],{timber:6,stone:2,livestock:1,grain:1,metal:1});
  const edge=publicCrossroads(game,'a').legalEdges[0];crossroadsAction(game,'a',{type:'buildRoute',edge});assert.ok(game.routes.some(route=>route.edge===edge&&route.side===0));
  crossroadsAction(game,'a',{type:'bankTrade',give:'timber',get:'metal'});assert.equal(game.resources[0].metal,2);
- game.resources[1].grain=2;crossroadsAction(game,'a',{type:'offerTrade',give:{metal:1},want:{grain:1}});crossroadsAction(game,'b',{type:'acceptTrade'});
+ game.resources[1].grain=2;game.resources[1].metal=0;crossroadsAction(game,'a',{type:'offerTrade',give:{metal:1},want:{grain:1}});crossroadsAction(game,'b',{type:'acceptTrade'});
  assert.equal(game.trade,null);assert.equal(game.resources[0].grain,2);assert.equal(game.resources[1].metal,1);
 });
 

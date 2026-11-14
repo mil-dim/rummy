@@ -21,6 +21,8 @@ proxy must pass WebSocket connections.
 
 ### Optional external bot player
 
+For optional OpenAI / private Ollama decisions, see [AI bot setup](docs/AI-BOTS.md).
+
 The `bot` Compose service is a separate process that connects to `tabletop` as
 an ordinary player. It receives only the same viewer-specific state sent to a
 human browser. Set one shared secret in the environment directory's `.env`:

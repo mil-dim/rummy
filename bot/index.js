@@ -1,5 +1,8 @@
 import { io } from "socket.io-client";
 import { chooseAction } from "./strategy.js";
+import { createAiChooser } from "./ai.js";
+
+const chooseWithAi = createAiChooser();
 
 const url = String(process.env.GAME_URL || "http://tabletop:8080");
 const token = String(process.env.BOT_TOKEN || "");
@@ -77,13 +80,21 @@ function startBot(index) {
     const attempt = JSON.stringify([latestRoom.id, latestRoom.game, action]);
     if (attempt === lastAttempt) return;
     const delay = minimumDelay + Math.floor(Math.random() * (maximumDelay - minimumDelay + 1));
-    timer = setTimeout(() => {
+    timer = setTimeout(async () => {
       timer = null;
       inFlight = true;
       lastAttempt = attempt;
-      socket.emit("action", action, response => {
+      const snapshot = latestRoom, identity = playerId;
+      const chosen = await chooseWithAi(snapshot, identity);
+      // A departure, opponent concession, reconnect or new game can arrive while awaiting AI.
+      if (!socket.connected || playerId !== identity || !latestRoom || latestRoom.id !== snapshot.id
+          || JSON.stringify(latestRoom.game) !== JSON.stringify(snapshot.game)) {
+        inFlight = false; consider(); return;
+      }
+      socket.timeout(5000).emit("action", chosen || action, (error, response) => {
         inFlight = false;
-        if (!response?.ok) console.error(`${name}: action ${action.type} rejected: ${response?.error}`);
+        if (error) console.error(`${name}: action acknowledgement timed out`);
+        else if (!response?.ok) console.error(`${name}: action ${action.type} rejected: ${response?.error}`);
         consider();
       });
     }, delay);

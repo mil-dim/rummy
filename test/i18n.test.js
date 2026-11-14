@@ -65,3 +65,9 @@ test('feedback form and delivery messages translate',()=>{
  assert.equal(translateText('Daily feedback limit reached. Please try again tomorrow.','bg'),'Достигнахте дневния лимит. Опитайте отново утре.');
 });
 
+test('Crossroads title and primary controls translate',()=>{
+ assert.equal(translateText('Crossroads of Thrace','bg'),'Тракийски кръстопътища');
+ assert.equal(translateText('ROOM THRACE1 · crossroads','bg'),'СТАЯ THRACE1 · тракийски кръстопътища');
+ for(const [english,bg] of [['Buy Fortune','Купи Съдба'],['End turn','Край на хода'],['Offer trade','Предложи размяна']])assert.equal(translateControl(english,'bg'),bg);
+});
+

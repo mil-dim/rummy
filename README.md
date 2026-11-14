@@ -46,7 +46,7 @@ bots can be exposed with `BOT_COUNT=1..4`. With no `BOT_TOKEN`, the companion
 stays disabled and does not connect.
 
 The first casual strategy implementation supports Backgammon variants, Santase,
-Blato and natural (non-joker) Rummy melds. Its decisions are deliberately simple
+Blato and Rummy melds including declared jokers. Its decisions are deliberately simple
 and slightly randomized. Bots cannot participate in rated matches because they
 have no approved Google account. Bot sessions and bot games are excluded from
 the visitor/marketing usage report.

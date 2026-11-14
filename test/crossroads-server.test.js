@@ -15,7 +15,8 @@ test('Crossroads room requires 3–4 players and preserves private materials',{t
  const created=await send(a,'createRoom',{name:'Thrace',gameType:'crossroads',maxPlayers:3});assert.equal(created.ok,true);await wait(10);assert.equal(a.room.maxPlayers,3);
  assert.equal((await send(a,'startGame',{})).ok,false);assert.equal((await send(b,'joinRoom',{id:created.id})).ok,true);assert.equal((await send(c,'joinRoom',{id:created.id})).ok,true);assert.equal((await send(watcher,'watchRoom',{id:created.id})).ok,true);
  assert.equal((await send(a,'startGame',{})).ok,true);await wait(30);assert.equal(a.room.game.kind,'crossroads');assert.equal(watcher.room.game.kind,'crossroads');
- assert.deepEqual(watcher.room.game.resources,[{count:0},{count:0},{count:0}]);assert.deepEqual(watcher.room.game.fortunes,[{count:0},{count:0},{count:0}]);assert.equal(watcher.room.game.board.hexes.length,19);
+ assert.deepEqual(watcher.room.game.resources,[{count:0},{count:0},{count:0}]);assert.deepEqual(watcher.room.game.fortunes,[{count:0},{count:0},{count:0}]);assert.equal(watcher.room.game.board.hexes.length,19);assert.equal(watcher.room.game.phase,'opening');
  assert.equal((await send(watcher,'action',{type:'buildVillage',vertex:0})).ok,false);
- const vertex=a.room.game.legalVertices[0];assert.equal((await send(a,'action',{type:'buildVillage',vertex})).ok,true);await wait(20);assert.equal(a.room.game.phase,'setup-route');assert.equal(a.room.game.buildings.length,1);
+ for(let guard=0;watcher.room.game.phase==='opening'&&guard++<20;)for(const socket of [a,b,c])if(socket.room.game.can.openingRoll){assert.equal((await send(socket,'action',{type:'openingRoll'})).ok,true);await wait(10)}
+ assert.equal(watcher.room.game.phase,'setup-village');const starterId=watcher.room.game.players[watcher.room.game.turn],starter=[a,b,c].find(socket=>socket.identity.player.id===starterId),vertex=starter.room.game.legalVertices[0];assert.equal((await send(starter,'action',{type:'buildVillage',vertex})).ok,true);await wait(20);assert.equal(starter.room.game.phase,'setup-route');assert.equal(starter.room.game.buildings.length,1);
 });

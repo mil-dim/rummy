@@ -49,3 +49,11 @@ test('generated Rummy options remain server legal through varied complete play',
   }
  }
 });
+
+test('local and AI candidates preserve a last card for discarding',()=>{
+ const g=fixture([card('a','A'),card('two','2'),card('three','3')],true);
+ assert.ok(rummyOptions(publicRummy(g,'bot'),'bot').every(o=>o.action.type==='discard'));
+ g.hands.bot=[card('four','4')];g.melds=[{id:'m',owner:'human',type:'run',cards:[card('a','A'),card('two','2'),card('three','3')]}];
+ const view={role:'player',game:publicRummy(g,'bot')};
+ assert.ok(rummyDecision(view,'bot').actions.every(a=>a.type==='discard'));
+});

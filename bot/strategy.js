@@ -1,5 +1,5 @@
+import { rummyOptions } from './rummy.js';
 const SUITS = ["♠", "♥", "♦", "♣"];
-const RUMMY_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 const TRICK_POWER = { A: 6, "10": 5, K: 4, Q: 3, J: 2, "9": 1 };
 const TRICK_POINTS = { A: 11, "10": 10, K: 4, Q: 3, J: 2, "9": 0 };
 const BLATO_POWER = Object.fromEntries(["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"].map((rank, index) => [rank, index + 1]));
@@ -219,125 +219,12 @@ function blatoAction(game, playerId, random) {
   return { type: "play", cardId: choose(candidates.slice(0, Math.min(2, candidates.length)), random).id };
 }
 
-const rummyRank = rank => rank === "A" ? 1 : rank === "J" ? 11 : rank === "Q" ? 12 : rank === "K" ? 13 : Number(rank);
-const rummyPoints = (card, lowAce = false) => card.rank === "JOKER" ? 25
-  : card.rank === "A" ? (lowAce ? 1 : 10) : ["J", "Q", "K"].includes(card.rank) ? 10 : Number(card.rank);
-
-function naturalMelds(hand) {
-  const result = [];
-  const natural = hand.filter(card => card.rank !== "JOKER");
-  for (const rank of RUMMY_RANKS) {
-    const bySuit = new Map();
-    for (const card of natural.filter(item => item.rank === rank)) if (!bySuit.has(card.suit)) bySuit.set(card.suit, card);
-    const cards = [...bySuit.values()];
-    if (cards.length >= 3) result.push({ cardIds: cards.slice(0, 3).map(card => card.id), points: cards.slice(0, 3).reduce((sum, card) => sum + rummyPoints(card), 0) });
-    if (cards.length === 4) result.push({ cardIds: cards.map(card => card.id), points: cards.reduce((sum, card) => sum + rummyPoints(card), 0) });
-  }
-  for (const suit of SUITS) {
-    const byRank = new Map();
-    for (const card of natural.filter(item => item.suit === suit)) if (!byRank.has(card.rank)) byRank.set(card.rank, card);
-    const sequences = [RUMMY_RANKS, [...RUMMY_RANKS.slice(1), "A"]];
-    for (const sequence of sequences) {
-      for (let start = 0; start < sequence.length; start++) {
-        const cards = [];
-        for (let end = start; end < sequence.length && byRank.has(sequence[end]); end++) {
-          cards.push(byRank.get(sequence[end]));
-          if (cards.length >= 3) {
-            const lowAce = cards.some(card => card.rank === "A") && sequence[0] === "A";
-            result.push({ cardIds: cards.map(card => card.id), points: cards.reduce((sum, card) => sum + rummyPoints(card, lowAce && card.rank === "A"), 0) });
-          }
-        }
-      }
-    }
-  }
-  const unique = new Map();
-  for (const meld of result) unique.set([...meld.cardIds].sort().join("|"), meld);
-  return [...unique.values()].sort((a, b) => b.cardIds.length - a.cardIds.length || b.points - a.points);
-}
-
-function bestMeldBatch(hand, opened) {
-  const candidates = naturalMelds(hand).slice(0, 60);
-  let best = null, explored = 0;
-  function visit(index, used, chosen, points) {
-    if (++explored > 30000) return;
-    if (chosen.length) {
-      const cards = used.size;
-      const allowed = opened || points >= 44 || hand.length - cards <= 1;
-      if (allowed && (!best || cards > best.cards || cards === best.cards && points > best.points))
-        best = { melds: chosen.map(meld => ({ cardIds: meld.cardIds })), cards, points };
-    }
-    for (let i = index; i < candidates.length; i++) {
-      const meld = candidates[i];
-      if (meld.cardIds.some(id => used.has(id))) continue;
-      const next = new Set(used); for (const id of meld.cardIds) next.add(id);
-      visit(i + 1, next, [...chosen, meld], points + meld.points);
-    }
-  }
-  visit(0, new Set(), [], 0);
-  return best;
-}
-
-function represented(card) { return card.rank === "JOKER" ? card.represents : card; }
-
-function addToMeld(game, hand) {
-  for (const meld of game.melds || []) {
-    const virtual = meld.cards.map(represented);
-    if (virtual.some(card => !card)) continue;
-    for (const card of hand.filter(item => item.rank !== "JOKER")) {
-      if (meld.type === "set") {
-        if (virtual.every(item => item.rank === card.rank) && virtual.every(item => item.suit !== card.suit) && virtual.length < 4)
-          return { type: "add", meldId: meld.id, cardIds: [card.id] };
-      } else {
-        if (!virtual.every(item => item.suit === card.suit)) continue;
-        const values = virtual.map(item => item.rank === "A" && Math.max(...virtual.map(v => rummyRank(v.rank))) > 10 ? 14 : rummyRank(item.rank));
-        const value = card.rank === "A" && Math.max(...values) === 13 ? 14 : rummyRank(card.rank);
-        if (value === Math.min(...values) - 1 || value === Math.max(...values) + 1)
-          return { type: "add", meldId: meld.id, cardIds: [card.id] };
-      }
-    }
-  }
-  return null;
-}
-
-function discardCard(hand) {
-  const utility = card => {
-    if (card.rank === "JOKER") return 100;
-    const rank = rummyRank(card.rank);
-    const sameRank = hand.filter(other => other.id !== card.id && other.rank === card.rank).length;
-    const neighbors = hand.filter(other => other.id !== card.id && other.suit === card.suit
-      && Math.abs(rummyRank(other.rank) - rank) <= 2).length;
-    return sameRank * 8 + neighbors * 4 - rummyPoints(card) * 0.25;
-  };
-  return [...hand].sort((a, b) => utility(a) - utility(b))[0];
-}
-
-function rummyAction(game, playerId) {
-  if (game.winner || game.players[game.turn] !== playerId) return null;
-  const hand = game.hands?.[playerId];
-  if (!Array.isArray(hand)) return null;
-  if (game.phase === "draw") return { type: "draw", from: "stock" };
-  if (game.phase !== "play") return null;
-  if (game.opened?.[playerId]) {
-    for (const meld of game.melds || []) for (const joker of meld.cards.filter(card => card.rank === "JOKER" && card.represents)) {
-      const replacement = hand.find(card => card.rank === joker.represents.rank && card.suit === joker.represents.suit);
-      if (replacement && game.openedTurn?.[playerId] !== game.turnNumber)
-        return { type: "replaceJoker", meldId: meld.id, jokerId: joker.id, cardId: replacement.id };
-    }
-    const addition = addToMeld(game, hand);
-    if (addition) return addition;
-  }
-  const batch = bestMeldBatch(hand, Boolean(game.opened?.[playerId]));
-  if (batch) return { type: "meldBatch", melds: batch.melds };
-  const discard = discardCard(hand);
-  return discard ? { type: "discard", cardId: discard.id } : null;
-}
-
 export function chooseAction(room, playerId, random = Math.random) {
   const game = room?.game;
   if (!game || room.role !== "player") return null;
   if (game.kind === "backgammon") return backgammonAction(game, playerId, random);
   if (game.kind === "santase") return santaseAction(game, playerId, random);
   if (game.kind === "blato") return blatoAction(game, playerId, random);
-  if (game.kind === "rummy") return rummyAction(game, playerId);
+  if (game.kind === "rummy") return rummyOptions(game, playerId)[0]?.action || null;
   return null;
 }

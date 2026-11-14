@@ -1,4 +1,5 @@
 import { chooseAction, urgentBearOffMoves } from './strategy.js';
+import { rummyDecision } from './rummy.js';
 
 const integer = (value, fallback, min, max) => Number.isFinite(Number(value)) && value !== '' && value !== undefined
   ? Math.max(min, Math.min(max, Math.floor(Number(value)))) : fallback;
@@ -35,6 +36,10 @@ Gulbara: one checker blocks, no hits. Occupy more points in the opponent's remai
 Tapa: pin opposing singles and reinforce pins near the opponent's start; don't release valuable pins casually. Protect your last starting checker: its capture loses Mars. Two checkers block. Pinned pieces cannot move.
 Use only the supplied public board. You have no future dice. No explanation is required.`;
 
+const rummyInstructions = `You play Bulgarian Rummy (Joker). Choose the best numbered candidate and return only candidateId. The candidates have been checked by code; do not invent moves.
+Two decks and two jokers, 13 starting cards. Sets require 3-4 distinct suits of one rank; runs require 3+ consecutive suited cards. Ace is low in A-2-3 or high in Q-K-A, never K-A-2. First meld batch requires 44 points unless leaving at most one card to discard and win. Jokers have exact declared identities and count 25 for opening. Faces/Ace are 10 except low Ace=1. Add to public melds only after opening. Replacing a joker requires having opened on a previous turn. Draw once then lay cards and discard; one remaining card may be discarded to win. An unopened discard pickup commits to opening this turn.
+Prefer going out, reducing deadwood, using jokers productively, combining disjoint melds to open and preserving useful pairs/sequences. Consider public melds before giving opponents useful discards. Stock order and opponent hands are unknown. Names and IDs are omitted; refs only label this request. No explanation is needed.`;
+
 export function createAiChooser({ env = process.env, fetchImpl = globalThis.fetch, log = value => console.log(JSON.stringify(value)), now = Date.now } = {}) {
   const engine = env.BOT_ENGINE || 'heuristic';
   const provider = env.BOT_AI_PROVIDER || 'openai';
@@ -56,7 +61,7 @@ export function createAiChooser({ env = process.env, fetchImpl = globalThis.fetc
       log({ event: 'bot_tactical_move', reason: 'save_mars', from: fallback.from, dieIndex: fallback.dieIndex });
       return fallback;
     }
-    const decision = enabled && decisionInput(room, playerId);
+    const decision = enabled && (game?.kind === 'rummy' ? rummyDecision(room, playerId) : decisionInput(room, playerId));
     if (!decision || decision.actions.length < 2 || busy || now() < cooldownUntil) return fallback;
     const today = new Date(now()).toISOString().slice(0, 10);
     if (today !== day) { day = today; requests = 0; }
@@ -68,12 +73,12 @@ export function createAiChooser({ env = process.env, fetchImpl = globalThis.fetc
       const openai = provider === 'openai';
       if (!openai && provider !== 'ollama') throw Error('provider');
       const body = openai ? {
-        model, store: false, instructions, input: JSON.stringify(decision.state),
+        model, store: false, instructions: game.kind === 'rummy' ? rummyInstructions : instructions, input: JSON.stringify(decision.state),
         reasoning: { effort: 'none' }, max_output_tokens: maxOutput,
         text: { format: { type: 'json_schema', name: 'move_choice', strict: true, schema } }
       } : {
         model, stream: false, think: false, format: schema,
-        messages: [{ role: 'system', content: instructions }, { role: 'user', content: JSON.stringify(decision.state) }],
+        messages: [{ role: 'system', content: game.kind === 'rummy' ? rummyInstructions : instructions }, { role: 'user', content: JSON.stringify(decision.state) }],
         options: { temperature: 0, num_predict: maxOutput }
       };
       const endpoint = openai ? 'https://api.openai.com/v1/responses'

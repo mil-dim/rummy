@@ -4,7 +4,7 @@ import { backgammonSound, boardView, moveDestination, variantName } from "./back
 import { translateInterface, translateText } from "./i18n.js";
 
 const socket=io(), $=selector=>document.querySelector(selector);
-let uiLanguage=localStorage.uiLanguage==="bg"?"bg":"en";
+let uiLanguage=['en','bg','es'].includes(localStorage.uiLanguage)?localStorage.uiLanguage:'en';
 function localizeControls(root=document){translateInterface(root,uiLanguage)}
 let soundMuted=localStorage.tabletopMuted==='1',audioContext=null,lastSoundAt={};
 const sampleSoundFiles=Object.freeze({dice:'/sounds/dice-hard-table.wav',checker:'/sounds/checker-stack-clack.wav',hit:'/sounds/checker-brutal-hit.wav'});
@@ -331,6 +331,7 @@ function renderBlato(game){
 
 const crossResource={timber:'Timber',stone:'Stone',livestock:'Livestock',grain:'Grain',metal:'Metal'};
 const crossIcon={timber:'🌲',stone:'🪨',livestock:'🐑',grain:'🌾',metal:'⛏️',wasteland:'🏜️'};
+const crossProgress={guard:'Guard — strengthens your guard',routes:'Two free trade routes',bounty:'Two materials of your choice',monopoly:'Material monopoly',victory:'Hidden victory point'};
 const crossColors=['#315c45','#b84432','#d39424','#526fa8'];
 function crossBundleInputs(prefix){return Object.keys(crossResource).map(name=>`<label>${crossIcon[name]} <input type="number" min="0" max="19" value="0" data-cross-bundle="${prefix}" data-resource="${name}" aria-label="${crossResource[name]}"></label>`).join('')}
 function readCrossBundle(prefix){const value={};document.querySelectorAll(`[data-cross-bundle="${prefix}"]`).forEach(input=>value[input.dataset.resource]=Number(input.value)||0);return value}
@@ -349,14 +350,14 @@ function renderCrossroads(game){
  const hexes=game.board.hexes.map(hex=>{const tile=game.board.tiles[hex.id],raider=game.board.raider===hex.id,victims=game.eligibleVictims?.[hex.id]||[];return `<g class="cross-hex ${mine&&game.phase==='raider'&&hex.id!==game.board.raider?'selectable':''}" data-cross-tile="${hex.id}" data-victims="${victims.join(',')}"><polygon points="${crossHexPoints(game,hex)}" class="terrain-${tile.resource}"></polygon><text x="${hex.x}" y="${hex.y-1.2}" class="terrain-icon">${crossIcon[tile.resource]}</text>${tile.number?`<circle cx="${hex.x}" cy="${hex.y+4}" r="2.8" class="number-token"></circle><text x="${hex.x}" y="${hex.y+5}" class="number-text ${[6,8].includes(tile.number)?'hot':''}">${tile.number}</text>`:''}${raider?`<text x="${hex.x+5}" y="${hex.y-4}" class="raider">⚔</text>`:''}</g>`}).join('');
  const edgeLines=game.board.edges.map(edge=>{const a=game.board.vertices[edge.a],b=game.board.vertices[edge.b],route=routes.get(edge.id),legal=game.legalEdges.includes(edge.id),harbor=harborByEdge.get(edge.id),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;return `<g>${route?`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="cross-route" style="stroke:${crossColors[route.side]}"></line>`:''}${legal?`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="cross-route-target" data-cross-edge="${edge.id}"></line>`:''}${harbor?`<text x="${mx}" y="${my}" class="harbor-mark">${harbor==='any'?'3:1':crossIcon[harbor]+' 2:1'}</text>`:''}</g>`}).join('');
  const vertexMarks=game.board.vertices.map(vertex=>{const building=buildings.get(vertex.id),legal=game.legalVertices.includes(vertex.id);if(building){const ownBuilding=building.side===side&&mine&&game.phase==='action';return building.type==='town'?`<rect x="${vertex.x-2.2}" y="${vertex.y-2.2}" width="4.4" height="4.4" rx=".5" class="cross-building" fill="${crossColors[building.side]}"></rect>`:`<circle cx="${vertex.x}" cy="${vertex.y}" r="2.1" class="cross-building ${ownBuilding?'upgradeable':''}" fill="${crossColors[building.side]}" ${ownBuilding?`data-cross-town="${vertex.id}"`:''}></circle>`}return legal?`<circle cx="${vertex.x}" cy="${vertex.y}" r="2" class="cross-vertex-target" data-cross-vertex="${vertex.id}"></circle>`:''}).join('');
- const standings=game.players.map((id,index)=>`<span class="cross-seat ${index===game.turn&&!game.finished&&game.phase!=='opening'?'current':''}"><i style="background:${crossColors[index]}"></i>${playerName(id)} · ${game.scores[index]} VP · ${game.resources[index].count??Object.values(game.resources[index]).reduce((a,b)=>a+b,0)} materials · ${game.fortunes[index].count??game.fortunes[index].length} fortune</span>`).join('');
- const resourcePanel=own?`<section class="cross-hand"><h4>Your materials</h4>${Object.entries(crossResource).map(([name,label])=>`<span>${crossIcon[name]} ${label}: <b>${Number(own[name]||0)}</b></span>`).join('')}<span>🎴 Fortune: <b>${game.fortunes[side].length}</b></span><span>Victory points: <b>${game.privateScore}</b></span></section>`:'';
+ const standings=game.players.map((id,index)=>`<span class="cross-seat ${index===game.turn&&!game.finished&&game.phase!=='opening'?'current':''}"><i style="background:${crossColors[index]}"></i>${playerName(id)} · ${game.scores[index]} VP · ${game.resources[index].count??Object.values(game.resources[index]).reduce((a,b)=>a+b,0)} materials · ${game.fortunes[index].count??game.fortunes[index].length} Progress cards</span>`).join('');
+ const resourcePanel=own?`<section class="cross-hand"><h4>Your materials</h4>${Object.entries(crossResource).map(([name,label])=>`<span>${crossIcon[name]} ${label}: <b>${Number(own[name]||0)}</b></span>`).join('')}<span>🎴 Progress cards: <b>${game.fortunes[side].length}</b></span><span>Victory points: <b>${game.privateScore}</b></span></section>`:'';
  const opening=game.phase==='opening'?`<section class="opening-rolls"><p>${game.openingPrevious?'Opening tie — highlighted players roll again.':'Everyone rolls two dice. Highest total places first.'}</p>${game.players.map((id,index)=>`<div><span>${playerName(id)}</span>${game.openingRolls[index]?`<strong>🎲 ${game.openingRolls[index][0]} + ${game.openingRolls[index][1]} = ${game.openingRolls[index][0]+game.openingRolls[index][1]}</strong>`:`<span>${game.openingCandidates.includes(index)?'Waiting…':'Tie resolved'}</span>`}</div>`).join('')}</section>`:'';
  const discard=side>=0&&game.pendingDiscards[side]?`<section class="cross-action-card"><h4>Return exactly ${game.pendingDiscards[side]} materials</h4><div class="cross-bundle">${crossBundleInputs('discard')}</div><button id="crossDiscard">Return materials</button></section>`:'';
  const trade=game.trade?`<section class="cross-action-card"><h4>Trade offered by ${playerName(game.players[game.trade.from])}</h4><p>Gives: ${Object.entries(game.trade.give).filter(([,n])=>n).map(([r,n])=>`${n} ${crossIcon[r]}`).join(' ')||'—'} · Wants: ${Object.entries(game.trade.want).filter(([,n])=>n).map(([r,n])=>`${n} ${crossIcon[r]}`).join(' ')||'—'}</p>${side===game.trade.from?'<button id="crossCancelTrade" class="ghost">Cancel trade</button>':side>=0?'<button id="crossAcceptTrade">Accept trade</button>':''}</section>`:'';
- const fortuneButtons=side>=0?game.fortunes[side].filter(card=>card.playable).map(card=>`<button class="ghost" data-cross-fortune="${card.id}" data-kind="${card.type}">Play ${card.type}</button>`).join(''):'';
- const actions=game.phase==='opening'&&game.can?.openingRoll?'<button id="crossOpeningRoll">Roll to start</button>':mine&&game.phase==='roll'?`<div class="actions"><button id="crossRoll">Roll dice</button>${fortuneButtons}</div>`:mine&&game.phase==='free-routes'?'<p class="notice">Select a highlighted route on the board.</p>':mine&&game.phase==='action'?`<section class="cross-actions"><div class="actions"><button id="crossBuyFortune" ${game.can.fortune?'':'disabled'}>Buy Fortune</button><button id="crossEnd" ${game.can.end?'':'disabled'}>End turn</button>${fortuneButtons}</div><details><summary>Trade with a market</summary><div class="cross-bank-trade"><select id="crossGive">${Object.keys(crossResource).map(r=>`<option value="${r}">${crossIcon[r]} ${crossResource[r]}</option>`).join('')}</select><span>for</span><select id="crossGet">${Object.keys(crossResource).map(r=>`<option value="${r}">${crossIcon[r]} ${crossResource[r]}</option>`).join('')}</select><button id="crossBankTrade">Trade</button></div></details><details><summary>Offer a player trade</summary><p>You give:</p><div class="cross-bundle">${crossBundleInputs('give')}</div><p>You want:</p><div class="cross-bundle">${crossBundleInputs('want')}</div><button id="crossOfferTrade">Offer trade</button></details></section>`:'';
- $("#game").innerHTML=`<section class="crossroads"><p class="eyebrow">CROSSROADS OF THRACE</p><h3>${crossStatus(game,side)}</h3>${game.dice?`<p class="cross-dice">🎲 ${game.dice[0]} + ${game.dice[1]} = <strong>${game.dice[0]+game.dice[1]}</strong></p>`:''}<div class="cross-standings">${standings}</div>${opening}${resourcePanel}${discard}${trade}${actions}<div class="cross-board-wrap"><svg class="cross-board" viewBox="0 0 100 100" role="img" aria-label="Crossroads of Thrace board">${hexes}${edgeLines}${vertexMarks}</svg></div><details class="cross-log"><summary>Table history</summary><ol>${game.log.slice().reverse().map(line=>`<li>${esc(line)}</li>`).join('')}</ol></details>${watching?'<p class="notice">You are watching. Materials and Fortune cards remain private.</p>':''}</section>`;
+ const fortuneButtons=side>=0?game.fortunes[side].filter(card=>card.playable).map(card=>`<button class="ghost" data-cross-fortune="${card.id}" data-kind="${card.type}"><span>Play</span>: <span>${crossProgress[card.type]||card.type}</span></button>`).join(''):'';
+ const actions=game.phase==='opening'&&game.can?.openingRoll?'<button id="crossOpeningRoll">Roll to start</button>':mine&&game.phase==='roll'?`<div class="actions"><button id="crossRoll">Roll dice</button>${fortuneButtons}</div>`:mine&&game.phase==='free-routes'?'<p class="notice">Select a highlighted route on the board.</p>':mine&&game.phase==='action'?`<section class="cross-actions"><div class="actions"><button id="crossBuyFortune" ${game.can.fortune?'':'disabled'}>Buy Progress card</button><button id="crossEnd" ${game.can.end?'':'disabled'}>End turn</button>${fortuneButtons}</div><details><summary>Trade with a market</summary><div class="cross-bank-trade"><select id="crossGive">${Object.keys(crossResource).map(r=>`<option value="${r}">${crossIcon[r]} ${crossResource[r]}</option>`).join('')}</select><span>for</span><select id="crossGet">${Object.keys(crossResource).map(r=>`<option value="${r}">${crossIcon[r]} ${crossResource[r]}</option>`).join('')}</select><button id="crossBankTrade">Trade</button></div></details><details><summary>Offer a player trade</summary><p>You give:</p><div class="cross-bundle">${crossBundleInputs('give')}</div><p>You want:</p><div class="cross-bundle">${crossBundleInputs('want')}</div><button id="crossOfferTrade">Offer trade</button></details></section>`:'';
+ $("#game").innerHTML=`<section class="crossroads"><p class="eyebrow">CROSSROADS OF THRACE</p><h3>${crossStatus(game,side)}</h3>${game.dice?`<p class="cross-dice">🎲 ${game.dice[0]} + ${game.dice[1]} = <strong>${game.dice[0]+game.dice[1]}</strong></p>`:''}<div class="cross-standings">${standings}</div>${opening}${resourcePanel}${discard}${trade}${actions}<div class="cross-board-wrap"><svg class="cross-board" viewBox="0 0 100 100" role="img" aria-label="Crossroads of Thrace board">${hexes}${edgeLines}${vertexMarks}</svg></div><details class="cross-log"><summary>Table history</summary><ol>${game.log.slice().reverse().map(line=>`<li>${esc(line)}</li>`).join('')}</ol></details>${watching?'<p class="notice">You are watching. Materials and Progress cards remain private.</p>':''}</section>`;
  document.querySelectorAll('[data-cross-vertex]').forEach(node=>node.onclick=()=>act({type:'buildVillage',vertex:Number(node.dataset.crossVertex)}));
  document.querySelectorAll('[data-cross-edge]').forEach(node=>node.onclick=()=>act({type:'buildRoute',edge:Number(node.dataset.crossEdge)}));
  document.querySelectorAll('[data-cross-town]').forEach(node=>node.onclick=()=>confirm('Upgrade this village to a town?')&&act({type:'buildTown',vertex:Number(node.dataset.crossTown)}));
@@ -617,7 +618,7 @@ function renderBackgammon(game){
 
 $("#uiLanguage").value=uiLanguage;
 $("#uiLanguage").onchange=()=>{
- uiLanguage=$("#uiLanguage").value==="bg"?"bg":"en";
+ uiLanguage=['en','bg','es'].includes($("#uiLanguage").value)?$("#uiLanguage").value:'en';
  localStorage.uiLanguage=uiLanguage;renderMaintenance();
  localizeControls();
  updateSoundToggle();
@@ -628,7 +629,18 @@ localizeControls();
 loadAccount();loadScoreboard();
 document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==uiLanguage);
 
-$("#rulesOpen").onclick=()=>$("#rules").showModal();
+function showRules(language=uiLanguage){
+ const activeGame=!$("#room").hidden&&room?.gameType?room.gameType:null;
+ document.querySelectorAll('.rules-language').forEach(article=>{
+  article.hidden=article.dataset.language!==language;
+  let sectionGame=null;
+  for(const child of article.children){
+   if(child.dataset.ruleGame)sectionGame=child.dataset.ruleGame;
+   child.hidden=Boolean(activeGame&&sectionGame!==activeGame);
+  }
+ });
+}
+$("#rulesOpen").onclick=()=>{showRules();$("#rules").showModal()};
 $("#feedbackOpen").onclick=()=>$("#feedbackDialog").showModal();
 $("#feedbackCancel").onclick=()=>$("#feedbackDialog").close();
 $("#feedbackForm").onsubmit=event=>{
@@ -643,7 +655,7 @@ $("#feedbackForm").onsubmit=event=>{
 };
 document.querySelectorAll("[data-rules-lang]").forEach(button=>button.onclick=()=>{
  const language=button.dataset.rulesLang;
- document.querySelectorAll(".rules-language").forEach(section=>section.hidden=section.dataset.language!==language);
+ showRules(language);
 });
 
 // The HTML carries the build that actually loaded this client. Comparing only

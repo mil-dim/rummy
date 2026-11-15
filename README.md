@@ -1,6 +1,6 @@
 # Tabletop
 
-Self-hosted real-time Bulgarian Rummy, Santase (66), Blato (3-5-8),
+Self-hosted real-time Rummy (Joker), Santase (66), Blato (3-5-8),
 Backgammon, and the original human-only strategy game Crossroads of Thrace.
 
 Guest play requires no account. Optional Google sign-in supports persistent,
@@ -158,7 +158,7 @@ the warning and `sh scripts/deploy-safe.sh` syncs the reviewed checkout, builds,
 checks that the drain is safe, and recreates the container. `--force` is an
 emergency override that disconnects users and loses in-memory games.
 
-Waiting tables default to two players. The lobby identifies Bulgarian Rummy as
+Waiting tables default to two players. The lobby identifies Rummy as
 Joker/Жокер, shows the current game or Backgammon variant on active tables, and
 lets seated players invite an available online person. Invitations remain visible
 until accepted/declined and are revalidated by the server before joining.

@@ -33,7 +33,7 @@ test('AI Rummy projection excludes opponent hands, names, stock order and intern
  for(const secret of ['internal-joker','internal-7','internal-king','secret-name',...g.hands.human.map(c=>c.id),...g.stock.map(c=>c.id)])assert.ok(!text.includes(secret));
  let called=false;
  const choose=createAiChooser({env:{BOT_ENGINE:'hybrid',OPENAI_API_KEY:'test'},log:()=>{},fetchImpl:async(_url,options)=>{
-  called=true;assert.ok(JSON.parse(options.body).instructions.includes('Bulgarian Rummy'));
+  called=true;assert.ok(JSON.parse(options.body).instructions.includes('Rummy (Joker)'));
   return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"candidateId":0}'}]}]})};
  }});
  const action=await choose(room,'bot');assert.equal(called,true);assert.doesNotThrow(()=>rummyAction(g,'bot',action));

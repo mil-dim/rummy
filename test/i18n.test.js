@@ -21,7 +21,7 @@ test('lobby and room translations preserve numeric state and identifiers',()=>{
  ['Game 6 of 6 finished','Партия 6 от 6 приключи'],
  ['2/4 players · ABC123','2/4 играчи · ABC123'],
  ['ROOM ABC123 · rummy','СТАЯ ABC123 · реми'],
- ['ROOM ABC123 · Bulgarian Rummy (Joker)','СТАЯ ABC123 · Българско реми (Жокер)'],
+ ['ROOM ABC123 · Rummy (Joker)','СТАЯ ABC123 · Реми (Жокер)'],
  ['Roll history — last 12 rolls','История — последни 12 хвърляния'],
  ['Point 24, 5 checkers','Позиция 24, 5 пула'],
  ['Waiting for the host to start…','Изчаква се домакинът да започне…'],
@@ -74,7 +74,7 @@ test('Crossroads title and primary controls translate',()=>{
 test('Spanish translates navigation, games, dynamic room text and Crossroads',()=>{
  for(const [english,spanish] of [
   ['Enter the lobby','Entrar en la sala'],['Back to lobby','Volver a la sala'],['Start game','Empezar partida'],
-  ['Bulgarian Rummy (Joker)','Rummy búlgaro (Joker)'],['Crossroads of Thrace','Encrucijadas de Tracia'],
+  ['Rummy (Joker)','Rummy (Joker)'],['Crossroads of Thrace','Encrucijadas de Tracia'],
   ['Your materials','Tus materiales'],['Progress cards','Cartas de progreso'],['Guard — strengthens your guard','Guardia: refuerza tu guardia'],
   ['ROOM THRACE1 · crossroads','MESA THRACE1 · encrucijadas de Tracia'],['Game 2 of 4','Partida 2 de 4']
  ])assert.equal(translateText(english,'es'),spanish);

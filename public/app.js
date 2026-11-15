@@ -49,7 +49,7 @@ function renderAccount(){
 }
 async function loadAccount(){try{const response=await fetch('/api/account',{cache:'no-store'}),data=await response.json();authConfigured=Boolean(data.configured);signedAccount=data.account;renderAccount()}catch{}}
 $("#accountSignOut").onclick=async()=>{await fetch('/auth/logout',{method:'POST'});location.reload()};
-const ratingName=category=>({rummy:'Bulgarian Rummy','backgammon-normal':'Normal Backgammon','backgammon-rotate':'Backgammon rotation',santase:'Santase (66)',blato:'Blato (3-5-8)'})[category]||category;
+const ratingName=category=>({rummy:'Rummy','backgammon-normal':'Normal Backgammon','backgammon-rotate':'Backgammon rotation',santase:'Santase (66)',blato:'Blato (3-5-8)'})[category]||category;
 async function loadScoreboard(){
  try{const response=await fetch('/api/scoreboard',{cache:'no-store'}),data=await response.json(),groups=(data.ratings||[]).reduce((all,row)=>{(all[row.category]||=[]).push(row);return all},{});
   $("#scoreboards").innerHTML=Object.keys(groups).length?`<div class="scoreboard-grid">${Object.entries(groups).map(([category,rows])=>`<div><h4>${esc(ratingName(category))}</h4><table><thead><tr><th>Player</th><th>Rating</th><th>Games</th></tr></thead><tbody>${rows.map(row=>`<tr><td data-no-translate>${esc(row.display_name)}</td><td>${Number(row.rating)}</td><td>${Number(row.games)}</td></tr>`).join("")}</tbody></table></div>`).join("")}</div>`:'<p>No rated matches yet.</p>';localizeControls($("#scoreboards"));
@@ -105,7 +105,7 @@ $("#signOut").onclick=()=>{
  const warning=room.role==="watcher"?"Stop watching and sign out?":room.game&&!room.game.winner?"Leave your table and sign out? An active game will be forfeited and the match will end after this hand.":"Leave this table and sign out?";
  if(confirm(translateText(warning,uiLanguage)))socket.emit("leaveRoom",{},response=>{if(response.ok)logout();else toast(response.error)});
 };
-function gameTypeName(type){return ({rummy:"Bulgarian Rummy (Joker)",backgammon:"Backgammon",santase:"Santase (66)",blato:"Blato (3-5-8)",crossroads:"Crossroads of Thrace"})[type]||type}
+function gameTypeName(type){return ({rummy:"Rummy (Joker)",backgammon:"Backgammon",santase:"Santase (66)",blato:"Blato (3-5-8)",crossroads:"Crossroads of Thrace"})[type]||type}
 function canInvite(person){return Boolean(room?.role==="player"&&!room.game&&room.players.length<room.maxPlayers&&!maintenance&&person.id!==me?.id&&person.connected&&person.roomId!==room.id&&!(room.gameType==='crossroads'&&person.bot))}
 function renderPeople(){
  $("#people").innerHTML=lobbyPeople.map(person=>`<p><span><span data-no-translate>${person.bot?"🤖 ":""}${esc(person.name)}</span> · <span>${esc(person.activity)}</span>${person.roomName?` · <span data-no-translate>${esc(person.roomName)}</span>`:""}</span>${canInvite(person)?` <button class="small ghost" data-invite="${esc(person.id)}">Invite</button>`:""}</p>`).join("")||"<p>No one here yet.</p>";localizeControls();

@@ -68,6 +68,17 @@ test('feedback form and delivery messages translate',()=>{
 test('Crossroads title and primary controls translate',()=>{
  assert.equal(translateText('Crossroads of Thrace','bg'),'Тракийски кръстопътища');
  assert.equal(translateText('ROOM THRACE1 · crossroads','bg'),'СТАЯ THRACE1 · тракийски кръстопътища');
- for(const [english,bg] of [['Buy Fortune','Купи Съдба'],['End turn','Край на хода'],['Offer trade','Предложи размяна']])assert.equal(translateControl(english,'bg'),bg);
+ for(const [english,bg] of [['Buy Progress card','Купи карта за развитие'],['End turn','Край на хода'],['Offer trade','Предложи размяна']])assert.equal(translateControl(english,'bg'),bg);
+});
+
+test('Spanish translates navigation, games, dynamic room text and Crossroads',()=>{
+ for(const [english,spanish] of [
+  ['Enter the lobby','Entrar en la sala'],['Back to lobby','Volver a la sala'],['Start game','Empezar partida'],
+  ['Bulgarian Rummy (Joker)','Rummy búlgaro (Joker)'],['Crossroads of Thrace','Encrucijadas de Tracia'],
+  ['Your materials','Tus materiales'],['Progress cards','Cartas de progreso'],['Guard — strengthens your guard','Guardia: refuerza tu guardia'],
+  ['ROOM THRACE1 · crossroads','MESA THRACE1 · encrucijadas de Tracia'],['Game 2 of 4','Partida 2 de 4']
+ ])assert.equal(translateText(english,'es'),spanish);
+ assert.equal(translateControl('Buy Progress card','es'),'Comprar carta de progreso');
+ assert.equal(translateText('Your materials','en'),'Your materials');
 });
 

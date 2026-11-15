@@ -38,15 +38,23 @@ const bg = {
   'Roll to start': 'Хвърли за начало'
   ,'Play card':'Играй картата','Claim 66':'Обяви 66','Close talon':'Затвори талона','Exchange trump 9':'Смени козовата деветка',
   'Give selected card':'Дай избраната карта','Return selected four cards':'Върни избраните четири карти','No trump':'Без коз','Pass':'Пас',
-  'Roll dice':'Хвърли заровете','Buy Fortune':'Купи Съдба','End turn':'Край на хода','Return materials':'Върни материалите','Trade':'Размени','Offer trade':'Предложи размяна','Accept trade':'Приеми размяната','Cancel trade':'Отмени размяната'
+  'Roll dice':'Хвърли заровете','Buy Progress card':'Купи карта за развитие','Play':'Изиграй','End turn':'Край на хода','Return materials':'Върни материалите','Trade':'Размени','Offer trade':'Предложи размяна','Accept trade':'Приеми размяната','Cancel trade':'Отмени размяната'
+};
+
+const esControls={
+ 'Rules / Правила':'Reglas','Feedback':'Opinión','Send feedback':'Enviar opinión','Enter the lobby':'Entrar en la sala','New room':'Nueva mesa','Join table':'Unirse','In progress':'En curso','Resume game':'Volver a la partida','Leave game':'Abandonar partida','Back to lobby':'Volver a la sala','Start game':'Empezar partida','Start match':'Empezar encuentro','Next game':'Siguiente partida','New match':'Nuevo encuentro','Cancel':'Cancelar','Create':'Crear','Close':'Cerrar','Reload updated game':'Cargar la versión nueva',
+ 'Draw stock':'Robar del mazo','Take card':'Tomar carta','Undo last action':'Deshacer última acción','Undo last move':'Deshacer último movimiento','Stage selected meld':'Preparar combinación','Lay all melds':'Bajar combinaciones','Discard selected':'Descartar seleccionada','Add selected':'Añadir seleccionadas','Arrange cards':'Ordenar cartas','Done arranging':'Terminar orden','Remove':'Quitar',
+ 'Concede 1 point':'Rendirse por 1 punto','Concede Mars — 2 points':'Rendirse con Mars — 2 puntos','Accept concession':'Aceptar rendición','Decline':'Rechazar','Cancel offer':'Cancelar oferta','Watch':'Observar','Resume watching':'Seguir observando','Stop watching':'Dejar de observar','Later':'Más tarde','Change name':'Cambiar nombre','Sign out':'Salir','Save name':'Guardar nombre','Disconnect Google':'Desconectar Google','Invite':'Invitar','Accept':'Aceptar',
+ 'Roll':'Tirar','Roll to start':'Tirar para empezar','Play card':'Jugar carta','Claim 66':'Declarar 66','Close talon':'Cerrar talón','Exchange trump 9':'Cambiar el 9 de triunfo','Give selected card':'Dar carta seleccionada','Return selected four cards':'Devolver cuatro cartas','No trump':'Sin triunfo','Pass':'Pasar','Roll dice':'Tirar los dados','Buy Progress card':'Comprar carta de progreso','Play':'Jugar','End turn':'Terminar turno','Return materials':'Devolver materiales','Trade':'Cambiar','Offer trade':'Proponer intercambio','Accept trade':'Aceptar intercambio','Cancel trade':'Cancelar intercambio'
 };
 
 export function translateControl(text, language) {
-  if (language !== 'bg') return text;
+  if (!['bg','es'].includes(language)) return text;
   const trimmed = text.trim();
-  let translated = bg[trimmed];
+  const controls=language==='bg'?bg:esControls;
+  let translated = controls[trimmed];
   if (translated === undefined && trimmed.startsWith('Replace '))
-    translated = 'Замени ' + trimmed.slice('Replace '.length);
+    translated = (language==='bg'?'Замени ':'Sustituir ') + trimmed.slice('Replace '.length);
   if (translated === undefined) return text;
   return text.slice(0, text.length - text.trimStart().length) + translated
     + text.slice(text.trimEnd().length);
@@ -186,13 +194,29 @@ const labels = {
  'Select the exact replacement card from your hand.':'Изберете точната карта за замяна от ръката си.'
 };
 
+const esLabels={
+ ...esControls,
+ 'Leave this table and sign out?':'¿Abandonar esta mesa y salir?','Maintenance in progress. Try again after the update.':'Mantenimiento en curso. Inténtalo después de la actualización.',
+ 'Rules and feedback':'Reglas y opiniones','Send a rules recommendation, feature idea, or opinion to the operator.':'Envía una recomendación sobre las reglas, una idea o una opinión.','Type':'Tipo','Rules recommendation':'Recomendación de reglas','Feature recommendation':'Idea para una función','General opinion':'Opinión general','Your message':'Tu mensaje','Please describe your suggestion…':'Describe tu sugerencia…','At most one message every 10 minutes and three per day. Do not include passwords or private information.':'Como máximo un mensaje cada 10 minutos y tres al día. No incluyas contraseñas ni información privada.','Thank you. Your feedback was saved.':'Gracias. Tu opinión se ha guardado.','Please wait before sending more feedback.':'Espera antes de enviar otra opinión.','Feedback could not be saved. Please try again later.':'No se pudo guardar. Inténtalo más tarde.',
+ 'People':'Personas','No one here yet.':'Todavía no hay nadie.','In lobby':'En la sala','Playing':'Jugando','Watching':'Observando','Disconnected':'Desconectado','At table':'En una mesa','Ratings':'Clasificación','Rating':'Puntuación','Games':'Partidas','Sign in with Google':'Entrar con Google','Rated':'Clasificada','Approval pending':'Aprobación pendiente','Rated match':'Encuentro clasificado','Sign-in is optional. Only approved signed players can choose rated matches.':'Iniciar sesión es opcional. Solo los jugadores aprobados pueden elegir encuentros clasificados.','No rated matches yet.':'Todavía no hay encuentros clasificados.','Ratings are temporarily unavailable.':'La clasificación no está disponible temporalmente.',
+ 'Bulgarian Rummy':'Rummy búlgaro','Bulgarian Rummy (Joker)':'Rummy búlgaro (Joker)','Backgammon rotation':'Rotación de backgammon','Backgammon':'Backgammon','Santase (66)':'Santase (66)','Blato (3-5-8)':'Blato (3-5-8)','Crossroads of Thrace':'Encrucijadas de Tracia','rummy':'rummy','backgammon':'backgammon','santase':'santase','blato':'blato','crossroads':'encrucijadas de Tracia',
+ 'Game invitation':'Invitación a una partida','invited you to':'te ha invitado a','Invitation sent.':'Invitación enviada.','Current game':'Partida actual','You are at another table. You can use this invitation after you leave it.':'Estás en otra mesa. Podrás usar esta invitación después de abandonarla.','Planned restart in':'Reinicio previsto en','Maintenance is due. Waiting for the operator.':'Es hora del mantenimiento. Esperando al operador.','Current games may continue. No automatic restart.':'Las partidas actuales pueden continuar. No hay reinicio automático.',
+ 'Watchers':'Observadores','None':'Ninguno','Finished':'Terminada','Waiting for players':'Esperando jugadores','Stock cards':'Cartas en el mazo','Cards remaining':'Cartas restantes','Watching — you are not seated and cannot make moves.':'Estás observando; no ocupas asiento ni puedes jugar.','Hands are hidden while you watch.':'Las manos están ocultas mientras observas.','You':'Tú','Players':'Jugadores','Player':'Jugador','Waiting for the host to start…':'Esperando a que el anfitrión empiece…','Your hand':'Tu mano','Your turn':'Tu turno','Your move':'Tu movimiento','Waiting…':'Esperando…',
+ 'Normal backgammon':'Backgammon normal','Gulbara':'Gulbara','Tapa':'Tapa','Match format':'Formato del encuentro','Normal Backgammon only':'Solo backgammon normal','Rotate: Normal → Gulbara → Tapa':'Rotar: normal → Gulbara → Tapa','Number of games':'Número de partidas','Number of rounds':'Número de rondas','Every game uses Normal Backgammon.':'Todas las partidas usan backgammon normal.','Pinned checker':'Ficha inmovilizada','Ascending doubles':'Dobles ascendentes','Inherited doubles':'Dobles heredados','Original roller':'Jugador original','White':'Blancas','Red':'Rojas','Off board':'Fuera del tablero','Bar — hit checkers':'Barra: fichas capturadas','Borne-off checkers':'Fichas retiradas','Win':'Victoria','Win by concession':'Victoria por rendición','Win by forfeit':'Victoria por abandono','Mars — opponent bore off no checkers':'Mars: el rival no retiró fichas','Roll to decide who starts':'Tira para decidir quién empieza','Opening rolls':'Tiradas iniciales','Opening':'Inicio','Turn':'Turno','Turn completed':'Turno terminado','No legal moves remaining — turn passed':'No quedan movimientos legales; pasa el turno',
+ 'A PRIVATE GAME TABLE':'UNA MESA DE JUEGO PRIVADA','Cards, dice,':'Cartas, dados,','good company.':'buena compañía.','Bulgarian card games and Backgammon for friends, wherever they are.':'Juegos de cartas búlgaros y backgammon para amigos, estén donde estén.','Your name':'Tu nombre','GAME LOBBY':'SALA DE JUEGO','Choose your table':'Elige tu mesa','Your seat is reserved. Leave before joining another table.':'Tu asiento está reservado. Abandona antes de unirte a otra mesa.','No open rooms yet.':'Todavía no hay mesas abiertas.','Open a table':'Abrir una mesa','Rummy match':'Encuentro de rummy','Backgammon match':'Encuentro de backgammon','Santase match':'Encuentro de santase','Blato match':'Encuentro de blato','Card match':'Encuentro de cartas','Sprint cycles':'Ciclos sprint','First to 11 match points wins.':'Gana el primero en llegar a 11 puntos.','Nine deals rotate the 8, 5 and 3 targets.':'Nueve manos rotan los objetivos 8, 5 y 3.',
+ 'Trump card':'Carta de triunfo','Current trick':'Baza actual','Last trick':'Última baza','Talon':'Talón','Closed':'Cerrado','Choose contract':'Elegir contrato','Card exchange':'Intercambio de cartas','Take the talon and return four cards':'Toma el talón y devuelve cuatro cartas','Public talon':'Talón público','Deal complete':'Mano terminada','Deal result':'Resultado de la mano','Opening cut':'Corte inicial','Cut a card':'Cortar una carta','Trump':'Triunfo','Not announced':'Sin anunciar','Completed pulls':'Peticiones terminadas','Staged melds':'Combinaciones preparadas','Table melds':'Combinaciones en mesa','Discard':'Descarte','Empty':'Vacío','Cards':'Cartas','Raw':'Puntos de la mano','Change':'Cambio','Full hand':'Sin abrir','Winner receives':'El ganador recibe','Cumulative standings':'Clasificación acumulada','Final standings':'Clasificación final',
+ 'Timber':'Madera','Stone':'Piedra','Livestock':'Ganado','Grain':'Grano','Metal':'Metal','Your materials':'Tus materiales','Progress cards':'Cartas de progreso','Progress card':'Carta de progreso','Victory points':'Puntos de victoria','Guard — strengthens your guard':'Guardia: refuerza tu guardia','Two free trade routes':'Dos rutas comerciales gratis','Two materials of your choice':'Dos materiales a elegir','Material monopoly':'Monopolio de un material','Hidden victory point':'Punto de victoria oculto','Trade with a market':'Intercambiar con un mercado','Offer a player trade':'Proponer intercambio a un jugador','You give:':'Ofreces:','You want:':'Quieres:','Table history':'Historial de la mesa','You are watching. Materials and Progress cards remain private.':'Estás observando. Los materiales y las cartas de progreso siguen siendo privados.','Roll both dice to decide who places first':'Tira ambos dados para decidir quién coloca primero','Waiting for the opening rolls':'Esperando las tiradas iniciales','Place a starting village':'Coloca una aldea inicial','Place a trade route beside it':'Coloca una ruta comercial a su lado','Roll the dice':'Tira los dados','Move the raider':'Mueve al saqueador','Build, trade, or end your turn':'Construye, comercia o termina tu turno',
+ 'An update is available.':'Hay una actualización disponible.','🔊 Sound on':'🔊 Sonido activado','🔇 Muted':'🔇 Silenciado','Something went wrong.':'Algo salió mal.','Select at least three cards.':'Selecciona al menos tres cartas.','Select one card.':'Selecciona una carta.','Select cards from your hand.':'Selecciona cartas de tu mano.','Choose the card represented by the joker':'Elige la carta que representa el comodín'
+};
+
 export function translateText(text, language) {
- if(language!=='bg')return text;
+ if(!['bg','es'].includes(language))return text;
  const value=text.trim();
- let translated=labels[value];
+ const dictionary=language==='bg'?labels:esLabels;
+ let translated=dictionary[value];
  if(translated===undefined){
   translated=translateControl(value,language);
-  translated=translated
+  translated=language==='bg'?translated
    .replace(/^Normal backgammon · /,'Обикновена табла · ')
    .replace(/^Gulbara · /,'Гюлбара · ')
    .replace(/^Tapa · /,'Тапа · ')
@@ -216,8 +240,19 @@ export function translateText(text, language) {
    .replace(/^receives (\d+) point\(s\)\.$/, 'получава $1 точки.')
    .replace(/^(\d+) cards · (\d+) raw points · (-?\d+) match points/, '$1 карти · $2 точки в ръката · $3 точки за мача')
    .replace(' · Full hand: 100 points / Неоткрит: 100 точки',' · Несвалил: 100 точки')
-   .replace(/^Update available \(v(.+)\)\. Reload to use the latest game\.$/,'Налична е версия $1. Презаредете, за да използвате обновената игра.');
+   .replace(/^Update available \(v(.+)\)\. Reload to use the latest game\.$/,'Налична е версия $1. Презаредете, за да използвате обновената игра.')
+   :translated
+   .replace(/^Normal backgammon · /,'Backgammon normal · ')
+   .replace(/Round (\d+) of (\d+)/g,'Ronda $1 de $2')
+   .replace(/^ROOM ([A-Za-z0-9]+) · (.+)$/,(_,id,kind)=>`MESA ${id} · ${esLabels[kind]||kind}`)
+   .replace(/^(\d+)\/(\d+) players · (.+)$/,'$1/$2 jugadores · $3')
+   .replace(/Game (\d+) of (\d+)/g,'Partida $1 de $2').replace(/Game (\d+)/g,'Partida $1')
+   .replace(/Deal (\d+) of (\d+)/g,'Mano $1 de $2').replace(/Deal (\d+)/g,'Mano $1')
+   .replace(/^Roll history — last (\d+) rolls$/,'Historial: últimas $1 tiradas')
+   .replace(/^Point (\d+), (\d+) checkers$/,'Punto $1, $2 fichas')
+   .replace(/^Die (\d+)(, used)?$/,(_,die,used)=>`Dado ${die}${used?', usado':''}`);
  }
+ if(translated===undefined)translated=value;
  return text.slice(0,text.length-text.trimStart().length)+translated+text.slice(text.trimEnd().length);
 }
 

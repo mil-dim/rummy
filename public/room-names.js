@@ -1,6 +1,7 @@
 export const roomNames={
  en:['One More Game','Lucky Table','Last Game, Promise','Blame the Dice','Where’s My Joker?','No Mercy','Beginner’s Luck','The Usual Suspects','Just Warming Up','Coffee and Revenge','The Crooked Dice','Mars Express'],
- bg:['Още една партия','Масата на късмета','Последна, обещавам','Заровете са виновни','Къде ми е жокерът?','Без милост','Късметът на начинаещия','Обичайните заподозрени','Само загряваме','Кафе и реванш','Кривите зарове','Марс експрес']
+ bg:['Още една партия','Масата на късмета','Последна, обещавам','Заровете са виновни','Къде ми е жокерът?','Без милост','Късметът на начинаещия','Обичайните заподозрени','Само загряваме','Кафе и реванш','Кривите зарове','Марс експрес'],
+ es:['Una partida más','Mesa de la suerte','La última, lo prometo','La culpa es de los dados','¿Dónde está mi comodín?','Sin piedad','Suerte de principiante','Los sospechosos habituales','Solo calentamos','Café y revancha','Los dados torcidos','Expreso a Marte']
 };
 const key=name=>name.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
 export function uniqueName(base,existing){
